@@ -4,6 +4,7 @@ import { useEditTemplate } from '../render/useEditTemplate';
 import { withLangOverrides } from '../render/langOverrides';
 import type { Lang, TemplateConfig } from '../types';
 
+import { tx } from '../i18n/tx';
 /**
  * 2026-11：预览右侧的「快捷版式」栏（负责人要求）：页边距等用小步长的加 / 减按钮微调，改完右侧预览立即更新，不用导出就能看空白。
  * 步长刻意很小（页边距 0.5 mm、字号 0.25 pt、行距 0.02、间距 0.5 mm），点一下只动一点点。
@@ -19,9 +20,9 @@ function Stepper({ label, value, onMinus, onPlus, testid, hint }: { label: strin
   return (
     <div className="fmt-row" title={hint}>
       <span className="fmt-label">{label}</span>
-      <button type="button" aria-label={`${label}减小`} data-testid={`${testid}-minus`} onClick={onMinus}>−</button>
+      <button type="button" aria-label={tx("{0}减小", label)} data-testid={`${testid}-minus`} onClick={onMinus}>−</button>
       <span className="fmt-value" data-testid={`${testid}-value`}>{value}</span>
-      <button type="button" aria-label={`${label}增大`} data-testid={`${testid}-plus`} onClick={onPlus}>＋</button>
+      <button type="button" aria-label={tx("{0}增大", label)} data-testid={`${testid}-plus`} onClick={onPlus}>＋</button>
     </div>
   );
 }
@@ -65,28 +66,28 @@ export function FormatPanel({ view }: { view: 'zh' | 'en' | 'both' }) {
   );
   return (
     <aside className="fmt-panel card" data-testid="fmt-panel">
-      <b>快捷版式</b>
-      <label className="fmt-sync"><input type="checkbox" data-testid="fmt-sync" checked={sync} disabled={both} onChange={(e) => setSync(e.target.checked)} />中英文同步调整</label>
+      <b>{tx("快捷版式")}</b>
+      <label className="fmt-sync"><input type="checkbox" data-testid="fmt-sync" checked={sync} disabled={both} onChange={(e) => setSync(e.target.checked)} />{tx("中英文同步调整")}</label>
       <div className="muted small" data-testid="fmt-scope">
-        {both ? '中英对照模式下两种语言一起调；切到「中文版」或「英文版」后可取消同步，单独调。'
-          : sync ? '勾选中：调整会同时作用于中文版和英文版。' : `已取消同步：现在只调整${lang === 'zh' ? '中文版' : '英文版'}，另一种语言不变。`}
+        {both ? tx("中英对照模式下两种语言一起调；切到「中文版」或「英文版」后可取消同步，单独调。")
+          : sync ? tx("勾选中：调整会同时作用于中文版和英文版。") : tx("已取消同步：现在只调整{0}，另一种语言不变。", lang === 'zh' ? tx("中文版") : tx("英文版"))}
       </div>
-      <div className="muted small">每次点一下只动一点点；右侧预览立即更新，虚线框 = 页边距。</div>
+      <div className="muted small">{tx("每次点一下只动一点点；右侧预览立即更新，虚线框 = 页边距。")}</div>
       <div className="fmt-group">
-        <Stepper label="页边距（整体）" testid="mg-all" value={allSame ? `${mg.top} mm` : `${mg.top}/${mg.left}`} onMinus={() => shift(['top', 'right', 'bottom', 'left'], -0.5)} onPlus={() => shift(['top', 'right', 'bottom', 'left'], 0.5)} hint="四边一起调整，每次 0.5 mm；数字为 上下/左右" />
-        {!allSame && <div className="muted small">当前：上下 {mg.top} mm，左右 {mg.left} mm（整体加减时四边同步变化）</div>}
-        <details><summary>分别调整上下 / 左右</summary>
-          {M('上', ['top'], 'mg-top')}{M('下', ['bottom'], 'mg-bottom')}{M('左', ['left'], 'mg-left')}{M('右', ['right'], 'mg-right')}
+        <Stepper label={tx("页边距（整体）")} testid="mg-all" value={allSame ? `${mg.top} mm` : `${mg.top}/${mg.left}`} onMinus={() => shift(['top', 'right', 'bottom', 'left'], -0.5)} onPlus={() => shift(['top', 'right', 'bottom', 'left'], 0.5)} hint={tx("四边一起调整，每次 0.5 mm；数字为 上下/左右")} />
+        {!allSame && <div className="muted small">{tx("当前：上下")} {mg.top} {tx("mm，左右")} {mg.left} {tx("mm（整体加减时四边同步变化）")}</div>}
+        <details><summary>{tx("分别调整上下 / 左右")}</summary>
+          {M(tx("上"), ['top'], 'mg-top')}{M(tx("下"), ['bottom'], 'mg-bottom')}{M(tx("左"), ['left'], 'mg-left')}{M(tx("右"), ['right'], 'mg-right')}
         </details>
       </div>
       <div className="fmt-group">
-        <div className="muted small">其他格式</div>
-        <Stepper label="正文字号" testid="fs" value={`${ty.bodySizePt} pt`} onMinus={() => typo('bodySizePt', -0.25, 8.5, 12)} onPlus={() => typo('bodySizePt', 0.25, 8.5, 12)} hint="每次 0.25 pt" />
-        <Stepper label="行距" testid="lh" value={ty.lineHeight.toFixed(2)} onMinus={() => typo('lineHeight', -0.02, 1.1, 1.7)} onPlus={() => typo('lineHeight', 0.02, 1.1, 1.7)} hint="每次 0.02" />
-        <Stepper label="板块间距" testid="sg" value={`${sp.sectionGapMm} mm`} onMinus={() => gap('sectionGapMm', -0.5)} onPlus={() => gap('sectionGapMm', 0.5)} hint="各板块（教育 / 项目 / 技能…）之间" />
-        <Stepper label="条目间距" testid="ig" value={`${sp.itemGapMm} mm`} onMinus={() => gap('itemGapMm', -0.5)} onPlus={() => gap('itemGapMm', 0.5)} hint="同一板块内每段经历之间" />
+        <div className="muted small">{tx("其他格式")}</div>
+        <Stepper label={tx("正文字号")} testid="fs" value={`${ty.bodySizePt} pt`} onMinus={() => typo('bodySizePt', -0.25, 8.5, 12)} onPlus={() => typo('bodySizePt', 0.25, 8.5, 12)} hint={tx("每次 0.25 pt")} />
+        <Stepper label={tx("行距")} testid="lh" value={ty.lineHeight.toFixed(2)} onMinus={() => typo('lineHeight', -0.02, 1.1, 1.7)} onPlus={() => typo('lineHeight', 0.02, 1.1, 1.7)} hint={tx("每次 0.02")} />
+        <Stepper label={tx("板块间距")} testid="sg" value={`${sp.sectionGapMm} mm`} onMinus={() => gap('sectionGapMm', -0.5)} onPlus={() => gap('sectionGapMm', 0.5)} hint={tx("各板块（教育 / 项目 / 技能…）之间")} />
+        <Stepper label={tx("条目间距")} testid="ig" value={`${sp.itemGapMm} mm`} onMinus={() => gap('itemGapMm', -0.5)} onPlus={() => gap('itemGapMm', 0.5)} hint={tx("同一板块内每段经历之间")} />
       </div>
-      <div className="muted small fmt-tip">小建议：下方空白多 → 先加行距 / 间距，比缩页边距更自然；正式投递页边距一般不小于 12 mm，正文字号不小于 9.5 pt。</div>
+      <div className="muted small fmt-tip">{tx("小建议：下方空白多 → 先加行距 / 间距，比缩页边距更自然；正式投递页边距一般不小于 12 mm，正文字号不小于 9.5 pt。")}</div>
     </aside>
   );
 }

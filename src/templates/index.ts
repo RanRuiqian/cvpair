@@ -1,4 +1,5 @@
 import { FEATURES } from '../features';
+import { txDeep } from '../i18n/tx';
 import type { TemplateConfig, TemplateLocale, ModuleKey } from '../types';
 
 const zhTitles: Record<ModuleKey, string> = { summary: '个人简介', work: '工作经历', projects: '项目经历', education: '教育背景', skills: '专业技能', campus: '校园经历', certificates: '证书', awards: '获奖' };
@@ -104,12 +105,12 @@ export const ENG_DEFAULT_ID = 'tpl-eng';
 
 /** 4 套正式预设 = 模板 + 语言。照片版仅面向明确要求照片的单位 */
 export interface FormalPreset { id: string; templateId: string; lang: 'zh' | 'en'; photo: boolean; label: string; note: string; recommended: boolean }
-export const FORMAL_PRESETS: FormalPreset[] = [
+export const FORMAL_PRESETS: FormalPreset[] = txDeep([
   { id: 'cn-eng', templateId: 'tpl-eng', lang: 'zh', photo: false, label: 'CN 工科正式版 · 无照片', note: '国内网申推荐', recommended: true },
   { id: 'cn-eng-photo', templateId: 'tpl-eng-photo', lang: 'zh', photo: true, label: 'CN 工科正式版 · 有照片', note: '用于明确要求照片的单位', recommended: false },
   { id: 'en-eng', templateId: 'tpl-eng', lang: 'en', photo: false, label: 'EN Engineering Classic · No Photo', note: 'Recommended for online applications', recommended: true },
   { id: 'en-eng-photo', templateId: 'tpl-eng-photo', lang: 'en', photo: true, label: 'EN Engineering Classic · With Photo', note: 'Only for employers that require a photo', recommended: false },
-];
+]);
 /** 模板（含其自定义副本）对应的工科基础模板 id */
 export function engineeringBaseOf(t: TemplateConfig | undefined): 'tpl-eng' | 'tpl-eng-photo' | null {
   if (!t) return null;

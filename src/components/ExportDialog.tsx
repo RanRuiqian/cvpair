@@ -11,6 +11,7 @@ import type { Lang } from '../types';
 import { kitExportState } from '../quality/kitVerify';
 import type { ZipFileKey } from '../export/zip';
 
+import { tx } from '../i18n/tx';
 const FILE_KEYS: ZipFileKey[] = ['cnPdf', 'cnDocx', 'enPdf', 'enDocx'];
 /** 勾选状态记在本机，下次打开保持（缺省四个都勾）。 */
 function loadFileSel(): Record<ZipFileKey, boolean> {
@@ -68,49 +69,49 @@ export function ExportPanel({ onClose, inline }: { onClose?: () => void; inline?
   useEffect(() => { countExports(names.company, names.roleAbbr, date).then(setCount); }, [names.company, names.roleAbbr, date]);
 
   const warnings: string[] = [];
-  if (!company.trim()) warnings.push('未填写公司名，将使用 "Company"');
-  if (resume?.items.some((i) => /演示机翻/.test(i.zh + i.en))) warnings.push('包含「演示机翻」占位文本，请先人工校对');
-  if (!resume) warnings.push('尚未针对岗位生成，将导出资料库全部启用条目');
+  if (!company.trim()) warnings.push(tx("未填写公司名，将使用 \"Company\""));
+  if (resume?.items.some((i) => /演示机翻/.test(i.zh + i.en))) warnings.push(tx("包含「演示机翻」占位文本，请先人工校对"));
+  if (!resume) warnings.push(tx("尚未针对岗位生成，将导出资料库全部启用条目"));
 
   const run = async () => {
-    setErr(''); setBusy('加载导出组件…');
+    setErr(''); setBusy(tx("加载导出组件…"));
     try {
       const { exportZip } = await import('../export/client');
-      const r = await exportZip(profile, template, resume, names, (f) => setBusy(`生成 ${f} …`), await buildKit(), chosen);
+      const r = await exportZip(profile, template, resume, names, (f) => setBusy(tx("生成 {0} …", f)), await buildKit(), chosen);
       await db.transaction('r', db.state, () => assertProfileEpoch(db, profileEpoch));
       downloadBytes(r.zip, names.zipName, 'application/zip');
       setPdfs([names.files.cnPdf, names.files.enPdf].filter((n) => r.files[n]).map((n) => ({ name: n, bytes: r.files[n] })));
       await db.transaction('rw', db.exports, db.state, async () => { await assertProfileEpoch(db, profileEpoch); await db.exports.put({ id: uid('export'), resumeId: resume?.id ?? '', company: names.company, roleAbbr: names.roleAbbr, date, seq: names.seq, zipName: names.zipName, files: Object.keys(r.files), exportedAt: new Date().toISOString(), jobId: job?.id, zip: r.zip, blobs: r.files }); });
       setCount((c) => c + 1);
-      setDone(`已下载 ${names.zipName}（中文 ${r.pages.zh} 页 / 英文 ${r.pages.en} 页${r.fitLevel.zh || r.fitLevel.en ? '，已自动缩排以控制页数' : ''}）`);
-      if (r.errors.length) { setErr('部分文件生成失败（已导出其余文件）：\n' + r.errors.join('\n')); setBusy(''); return; }
+      setDone(tx("已下载 {0}（中文 {1} 页 / 英文 {2} 页{3}）", names.zipName, r.pages.zh, r.pages.en, r.fitLevel.zh || r.fitLevel.en ? tx("，已自动缩排以控制页数") : ''));
+      if (r.errors.length) { setErr(tx("部分文件生成失败（已导出其余文件）：\n") + r.errors.join('\n')); setBusy(''); return; }
       if (!inline) onClose?.();
-    } catch (e) { setErr('导出失败：' + (e as Error).message); } finally { setBusy(''); }
+    } catch (e) { setErr(tx("导出失败：") + (e as Error).message); } finally { setBusy(''); }
   };
 
   return (
     <div>
-        {!inline && <h3>导出 zip（中/英 × PDF/Word）</h3>}
+        {!inline && <h3>{tx("导出 zip（中/英 × PDF/Word）")}</h3>}
         <div className="grid2">
-          <label>公司名（会出现在文件名里）<input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="如：字节跳动" /></label>
-          <label>岗位缩写<input value={abbr} onChange={(e) => setAbbr(e.target.value)} placeholder="如：FE、PM、DA" /></label>
+          <label>{tx("公司名（会出现在文件名里）")}<input value={company} onChange={(e) => setCompany(e.target.value)} placeholder={tx("如：字节跳动")} /></label>
+          <label>{tx("岗位缩写")}<input value={abbr} onChange={(e) => setAbbr(e.target.value)} placeholder={tx("如：FE、PM、DA")} /></label>
         </div>
         <div className="names">
           <div>📦 <b>{names.zipName}</b></div>
           {FILE_KEYS.map((k) => <label key={k} className="indent check" data-testid={`zip-file-${k}`}><input type="checkbox" checked={fileSel[k]} onChange={(e) => toggleFile(k, e.target.checked)} /> 📄 {names.files[k]}</label>)}
           {kitNames.map((f) => <div key={f} className="indent">📝 {f}</div>)}
         </div>
-        {chosen.length === 0 && kitNames.length === 0 && <div className="notice warn" data-testid="zip-none">请至少勾选一个文件。</div>}
-        {hasKit && <label className="check"><input type="checkbox" checked={withKit} onChange={(e) => { setWithKit(e.target.checked); localStorage.setItem('zipKit', e.target.checked ? '1' : '0'); }} /> 同时打包求职信 / 自我介绍 / 备考方向（Word）</label>}
-        <div className="muted small">PDF 直接投递；Word 版方便你再微调。文件名不含姓名，投递前可自行改名。</div>
-        {kitState.hasText && !kitState.verdict.passed && <p className="muted small" data-testid="export-kit-note">求职信 / 自我介绍可能有与资料不同的表述，请留意关键事实；当前文字仍会按选择导出。</p>}
+        {chosen.length === 0 && kitNames.length === 0 && <div className="notice warn" data-testid="zip-none">{tx("请至少勾选一个文件。")}</div>}
+        {hasKit && <label className="check"><input type="checkbox" checked={withKit} onChange={(e) => { setWithKit(e.target.checked); localStorage.setItem('zipKit', e.target.checked ? '1' : '0'); }} /> {tx("同时打包求职信 / 自我介绍 / 备考方向（Word）")}</label>}
+        <div className="muted small">{tx("PDF 直接投递；Word 版方便你再微调。文件名不含姓名，投递前可自行改名。")}</div>
+        {kitState.hasText && !kitState.verdict.passed && <p className="muted small" data-testid="export-kit-note">{tx("求职信 / 自我介绍可能有与资料不同的表述，请留意关键事实；当前文字仍会按选择导出。")}</p>}
         <ResumeNotice />
         {warnings.map((w) => <div key={w} className="notice warn">⚠ {w}</div>)}
         {busy && <div className="notice">{busy}</div>}
         {done && <div className="notice ok">✓ {done}</div>}
-        {pdfs.length > 0 && <div className="row" data-testid="export-pdf-share">{pdfs.map((f) => <button key={f.name} onClick={() => sharePdf(f.name, f.bytes)}>📤 {/CN/.test(f.name) ? '中文' : '英文'} PDF（保存 / 分享）</button>)}</div>}
+        {pdfs.length > 0 && <div className="row" data-testid="export-pdf-share">{pdfs.map((f) => <button key={f.name} onClick={() => sharePdf(f.name, f.bytes)}>📤 {/CN/.test(f.name) ? tx("中文") : tx("英文")} {tx("PDF（保存 / 分享）")}</button>)}</div>}
         {err && <pre className="notice error">{err}</pre>}
-        <div className="row end">{!inline && <button onClick={onClose}>取消</button>}<button className="primary big" data-testid="zip-download" disabled={!!busy || chosen.length + kitNames.length === 0} onClick={run}>⬇ 下载 zip（{chosen.length + kitNames.length} 个文件）</button></div>
+        <div className="row end">{!inline && <button onClick={onClose}>{tx("取消")}</button>}<button className="primary big" data-testid="zip-download" disabled={!!busy || chosen.length + kitNames.length === 0} onClick={run}>{tx("⬇ 下载 zip（")}{chosen.length + kitNames.length} {tx("个文件）")}</button></div>
     </div>
   );
 }

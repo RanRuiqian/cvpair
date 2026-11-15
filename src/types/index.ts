@@ -1,4 +1,5 @@
 import type { EvidenceReport, JointSet } from './joint';
+import { txDeep } from '../i18n/tx';
 export type Lang = 'zh' | 'en';
 export const LANGS: Lang[] = ['zh', 'en'];
 export type TransStatus = 'manual' | 'machine' | 'confirmed' | 'stale';
@@ -114,7 +115,7 @@ export interface EducationEntry extends BaseEntry {
 }
 /** 经历类型（v1.6）：正式工作、实习、兼职、社团任职、志愿服务等，便于按岗位挑选；未填 = 未区分 */
 export type WorkKind = '' | 'fulltime' | 'internship' | 'parttime' | 'club' | 'volunteer' | 'other';
-export const WORK_KIND_LABEL: Record<WorkKind, string> = { '': '未区分', fulltime: '正式工作', internship: '实习', parttime: '兼职', club: '社团 / 学生工作', volunteer: '志愿服务', other: '其它经历' };
+export const WORK_KIND_LABEL: Record<WorkKind, string> = txDeep({ '': '未区分', fulltime: '正式工作', internship: '实习', parttime: '兼职', club: '社团 / 学生工作', volunteer: '志愿服务', other: '其它经历' });
 export interface WorkEntry extends BaseEntry {
   company: LocalizedText; title: LocalizedText; start: string; end: string;
   bullets: LocalizedText[]; tags: string[];

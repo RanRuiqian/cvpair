@@ -1,4 +1,5 @@
 import { APP_STATUSES, type Application, type AppStatus, type JobPosting } from './types';
+import { tx } from '../i18n/tx';
 
 export const WAITING: AppStatus[] = ['applied'];
 export const ACTIVE_STAGE: AppStatus[] = ['assessment', 'interviewing'];
@@ -12,7 +13,7 @@ export function computeStats(postings: JobPosting[], apps: Application[], today 
   const byCity: Record<string, number> = {}, byCompany: Record<string, number> = {};
   for (const p of postings) {
     if (!latest.has(p.id)) continue;
-    byCity[p.city || '（未填城市）'] = (byCity[p.city || '（未填城市）'] ?? 0) + 1;
+    { const c = p.city || tx('（未填城市）'); byCity[c] = (byCity[c] ?? 0) + 1; }
     byCompany[p.company || '（未填公司）'] = (byCompany[p.company || '（未填公司）'] ?? 0) + 1;
   }
   const t0 = today.toISOString().slice(0, 10), t14 = new Date(today.getTime() + 14 * 864e5).toISOString().slice(0, 10);

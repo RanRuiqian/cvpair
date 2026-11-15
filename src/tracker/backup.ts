@@ -13,6 +13,7 @@ import { sha256Hex } from './repo';
 import type { Application, ApplicationEvent, Attachment, JobPosting, ResumeArtifact } from './types';
 import { TRACKER_SCHEMA_VERSION } from './types';
 
+import { tx, txDeep } from '../i18n/tx';
 export const ARCHIVE_FORMAT = 'resume-tool-archive';
 /** v3（2026-11-03）：新增「我的版式模板」section、API 设置（不含 Key）、可选的密码加密 Key */
 export const ARCHIVE_VERSION = 3;
@@ -38,7 +39,7 @@ export interface ArchiveData {
 /** resumes 等 section 完整保存 ResumeDoc（包括取消项缓存与本简历编辑），无需新增 section。 */
 export const SECTIONS = ['profile', 'postings', 'applications', 'events', 'artifacts', 'attachments', 'jobs', 'resumes', 'jdGroups', 'resumeVersions', 'templates'] as const;
 export type Section = (typeof SECTIONS)[number];
-export const SECTION_LABEL: Record<Section, string> = { profile: '个人事实档案', postings: '岗位库', applications: '申请记录', events: '状态历史', artifacts: '简历版本', attachments: '附件', jobs: '已解析 JD', resumes: '生成的简历', jdGroups: '联合 JD 组', resumeVersions: '不可变共同简历版本', templates: '我的版式模板' };
+export const SECTION_LABEL: Record<Section, string> = txDeep({ profile: "个人事实档案", postings: "岗位库", applications: "申请记录", events: "状态历史", artifacts: "简历版本", attachments: "附件", jobs: "已解析 JD", resumes: "生成的简历", jdGroups: "联合 JD 组", resumeVersions: "不可变共同简历版本", templates: "我的版式模板" });
 export interface Manifest {
   format: typeof ARCHIVE_FORMAT; archiveVersion: number; trackerSchemaVersion: number; dbVersion: number;
   generatedAt: string; light: boolean; counts: Record<Section, number>;
@@ -73,9 +74,9 @@ function manifestOf(d: ResumeDB, data: ArchiveData, light: boolean, attachmentFi
     format: ARCHIVE_FORMAT, archiveVersion: ARCHIVE_VERSION, trackerSchemaVersion: TRACKER_SCHEMA_VERSION, dbVersion: d.verno, generatedAt: new Date().toISOString(), light,
     counts: Object.fromEntries(SECTIONS.map((s) => [s, s === 'profile' ? (data.profile ? 1 : 0) : (data[s] as unknown[]).length])) as Record<Section, number>,
     files: Object.fromEntries(SECTIONS.map((s) => [s, `data/${s}.json`])) as Manifest['files'],
-    attachmentFiles, excluded: [ex.keys ? 'API Key 明文（Key 仅以密码加密形式保存在 data/keys.enc.json）' : 'API Key（未选择加密导出）', ...(ex.settings ? [] : ['API 设置']), '界面状态', '资料快照（backups）', '导出历史中的文件本体'],
+    attachmentFiles, excluded: [ex.keys ? tx("API Key 明文（Key 仅以密码加密形式保存在 data/keys.enc.json）") : tx("API Key（未选择加密导出）"), ...(ex.settings ? [] : [tx("API 设置")]), tx("界面状态"), tx("资料快照（backups）"), tx("导出历史中的文件本体")],
     settings: !!ex.settings, encryptedKeys: ex.keys?.count ?? 0,
-    note: '本文件包含个人求职资料，请勿上传到公开仓库。',
+    note: tx("本文件包含个人求职资料，请勿上传到公开仓库。"),
   };
 }
 /** 完整求职档案 ZIP：manifest.json + data/*.json + attachments/<id>/<文件名> */
@@ -106,52 +107,52 @@ export interface ArchiveCheck {
   /** v3：备份中的 API 设置（不含 Key）与加密 Key */
   settings: SettingsArchive | null; encryptedKeys: EncryptedKeys | null;
 }
-const asArr = <T,>(v: unknown, name: string, errs: string[]): T[] => { if (v === undefined) return []; if (!Array.isArray(v)) { errs.push(`${name} 不是列表，已忽略`); return []; } return v as T[]; };
+const asArr = <T,>(v: unknown, name: string, errs: string[]): T[] => { if (v === undefined) return []; if (!Array.isArray(v)) { errs.push(tx("{0} 不是列表，已忽略", name)); return []; } return v as T[]; };
 /** 先完整验证，再写数据库：结构、引用关系、附件是否缺失 / 校验值是否一致、与现有数据的重复 */
 export async function readArchive(d: ResumeDB, file: Uint8Array | string): Promise<ArchiveCheck> {
   const errors: string[] = [], warnings: string[] = []; const blobs = new Map<string, Uint8Array>();
   let manifest: Manifest | null = null; let raw: Record<string, unknown> = {};
   if (typeof file === 'string' || file[0] === 0x7b) {
-    try { raw = JSON.parse(typeof file === 'string' ? file : new TextDecoder().decode(file)); } catch (e) { throw new Error(`备份文件损坏：JSON 无法解析（${(e as Error).message}）`); }
+    try { raw = JSON.parse(typeof file === 'string' ? file : new TextDecoder().decode(file)); } catch (e) { throw new Error(tx("备份文件损坏：JSON 无法解析（{0}）", (e as Error).message)); }
     manifest = (raw.manifest as Manifest) ?? null;
   } else {
-    let zip: JSZip; try { zip = await JSZip.loadAsync(file); } catch { throw new Error('备份文件损坏：不是有效的 ZIP'); }
-    const mf = zip.file('manifest.json'); if (!mf) throw new Error('备份缺少 manifest.json，不是本工具导出的完整档案');
-    try { manifest = JSON.parse(await mf.async('string')); } catch { throw new Error('manifest.json 损坏'); }
+    let zip: JSZip; try { zip = await JSZip.loadAsync(file); } catch { throw new Error(tx("备份文件损坏：不是有效的 ZIP")); }
+    const mf = zip.file('manifest.json'); if (!mf) throw new Error(tx("备份缺少 manifest.json，不是本工具导出的完整档案"));
+    try { manifest = JSON.parse(await mf.async('string')); } catch { throw new Error(tx("manifest.json 损坏")); }
     for (const s of SECTIONS) {
       const f = zip.file(manifest!.files?.[s] ?? `data/${s}.json`);
-      if (!f) { if (!(s === 'templates' && (manifest!.archiveVersion ?? 0) < 3)) warnings.push(`缺少 ${SECTION_LABEL[s]} 数据文件`); continue; }
-      try { raw[s] = JSON.parse(await f.async('string')); } catch { errors.push(`${SECTION_LABEL[s]} 数据文件损坏，无法读取`); }
+      if (!f) { if (!(s === 'templates' && (manifest!.archiveVersion ?? 0) < 3)) warnings.push(tx("缺少 {0} 数据文件", SECTION_LABEL[s])); continue; }
+      try { raw[s] = JSON.parse(await f.async('string')); } catch { errors.push(tx("{0} 数据文件损坏，无法读取", SECTION_LABEL[s])); }
     }
     for (const a of manifest!.attachmentFiles ?? []) { const f = zip.file(a.path); if (f) blobs.set(a.id, await f.async('uint8array')); }
     for (const [k, path] of [['settings', 'data/settings.json'], ['encryptedKeys', 'data/keys.enc.json']] as const) {
       const f = zip.file(path); if (!f) continue;
-      try { raw[k] = JSON.parse(await f.async('string')); } catch { warnings.push(`${k === 'settings' ? 'API 设置' : '加密 Key'} 文件损坏，已忽略`); }
+      try { raw[k] = JSON.parse(await f.async('string')); } catch { warnings.push(tx("{0} 文件损坏，已忽略", k === 'settings' ? tx("API 设置") : tx("加密 Key"))); }
     }
   }
-  if (manifest?.format !== ARCHIVE_FORMAT) throw new Error('不是「完整求职档案」格式（manifest.format 不匹配）');
-  if (manifest.archiveVersion > ARCHIVE_VERSION) errors.push(`备份来自更新版本的工具（档案版本 ${manifest.archiveVersion}），请先升级本工具`);
+  if (manifest?.format !== ARCHIVE_FORMAT) throw new Error(tx("不是「完整求职档案」格式（manifest.format 不匹配）"));
+  if (manifest.archiveVersion > ARCHIVE_VERSION) errors.push(tx("备份来自更新版本的工具（档案版本 {0}），请先升级本工具", manifest.archiveVersion));
   const data: ArchiveData = scrubSecrets({
-    jdGroups: asArr<JointGroup>(raw.jdGroups, '联合 JD 组', errors), resumeVersions: asArr<SharedResumeVersion>(raw.resumeVersions, '共用版本', errors),
+    jdGroups: asArr<JointGroup>(raw.jdGroups, tx("联合 JD 组"), errors), resumeVersions: asArr<SharedResumeVersion>(raw.resumeVersions, tx("共用版本"), errors),
     profile: raw.profile && typeof raw.profile === 'object' ? normalizeProfile(raw.profile) : null,
-    postings: asArr<JobPosting>(raw.postings, '岗位库', errors), applications: asArr<Application>(raw.applications, '申请记录', errors), events: asArr<ApplicationEvent>(raw.events, '状态历史', errors),
-    artifacts: asArr<ResumeArtifact>(raw.artifacts, '简历版本', errors), attachments: asArr<Attachment>(raw.attachments, '附件', errors), jobs: asArr<JobParse>(raw.jobs, '已解析 JD', errors), resumes: asArr<ResumeDoc>(raw.resumes, '生成的简历', errors),
-    templates: asArr<TemplateConfig>(raw.templates, '我的版式模板', errors).map((t) => (t && typeof t === 'object' ? normalizeTemplate(t) : t)),
+    postings: asArr<JobPosting>(raw.postings, tx("岗位库"), errors), applications: asArr<Application>(raw.applications, tx("申请记录"), errors), events: asArr<ApplicationEvent>(raw.events, tx("状态历史"), errors),
+    artifacts: asArr<ResumeArtifact>(raw.artifacts, tx("简历版本"), errors), attachments: asArr<Attachment>(raw.attachments, tx("附件"), errors), jobs: asArr<JobParse>(raw.jobs, tx("已解析 JD"), errors), resumes: asArr<ResumeDoc>(raw.resumes, tx("生成的简历"), errors),
+    templates: asArr<TemplateConfig>(raw.templates, tx("我的版式模板"), errors).map((t) => (t && typeof t === 'object' ? normalizeTemplate(t) : t)),
   });
   const settings = isSettingsArchive(raw.settings) ? scrubSecrets(raw.settings) : null;
   const encryptedKeys = isEncryptedKeys(raw.encryptedKeys) ? raw.encryptedKeys : null;
-  if (raw.encryptedKeys && !encryptedKeys) warnings.push('加密 Key 格式无法识别，已忽略');
-  for (const s of SECTIONS) if (s !== 'profile') for (const x of data[s] as { id?: unknown }[]) if (!x || typeof x.id !== 'string') { errors.push(`${SECTION_LABEL[s]} 中有记录缺少 id`); break; }
-  for (const v of data.resumeVersions) if (!await verifySharedVersion(v)) errors.push(`共用版本校验失败：${v?.id}`);
+  if (raw.encryptedKeys && !encryptedKeys) warnings.push(tx("加密 Key 格式无法识别，已忽略"));
+  for (const s of SECTIONS) if (s !== 'profile') for (const x of data[s] as { id?: unknown }[]) if (!x || typeof x.id !== 'string') { errors.push(tx("{0} 中有记录缺少 id", SECTION_LABEL[s])); break; }
+  for (const v of data.resumeVersions) if (!await verifySharedVersion(v)) errors.push(tx("共用版本校验失败：{0}", v?.id));
   const pIds = new Set(data.postings.map((p) => p.id)), aIds = new Set(data.applications.map((a) => a.id));
-  const orphanApps = data.applications.filter((a) => !pIds.has(a.postingId)).length; if (orphanApps) warnings.push(`${orphanApps} 条申请记录找不到对应岗位（仍可导入）`);
-  const orphanEv = data.events.filter((e) => !aIds.has(e.applicationId)).length; if (orphanEv) warnings.push(`${orphanEv} 条状态历史找不到对应申请`);
+  const orphanApps = data.applications.filter((a) => !pIds.has(a.postingId)).length; if (orphanApps) warnings.push(tx("{0} 条申请记录找不到对应岗位（仍可导入）", orphanApps));
+  const orphanEv = data.events.filter((e) => !aIds.has(e.applicationId)).length; if (orphanEv) warnings.push(tx("{0} 条状态历史找不到对应申请", orphanEv));
   if (!manifest.light) for (const a of data.attachments) {
     const b = blobs.get(a.id);
-    if (!b) warnings.push(`附件缺失：${a.name}（将只导入说明，不含文件）`);
-    else if ((await sha256Hex(b)) !== a.sha256) { warnings.push(`附件校验失败（文件可能损坏）：${a.name}，将跳过`); blobs.delete(a.id); }
+    if (!b) warnings.push(tx("附件缺失：{0}（将只导入说明，不含文件）", a.name));
+    else if ((await sha256Hex(b)) !== a.sha256) { warnings.push(tx("附件校验失败（文件可能损坏）：{0}，将跳过", a.name)); blobs.delete(a.id); }
   }
-  else if (data.attachments.length) warnings.push(`轻量 JSON 不含附件文件：${data.attachments.length} 个附件只有说明信息`);
+  else if (data.attachments.length) warnings.push(tx("轻量 JSON 不含附件文件：{0} 个附件只有说明信息", data.attachments.length));
   const existing = {} as Record<Section, number>, incoming = {} as Record<Section, number>;
   const tbl = tables(d);
   for (const s of SECTIONS) {
@@ -159,8 +160,8 @@ export async function readArchive(d: ResumeDB, file: Uint8Array | string): Promi
     const ids = (data[s] as { id: string }[]).map((x) => x.id); incoming[s] = ids.length;
     existing[s] = ids.length ? (await tbl[s].bulkGet(ids)).filter(Boolean).length : 0;
   }
-  const dupIds = SECTIONS.filter((s) => existing[s] && s !== 'profile').map((s) => `${SECTION_LABEL[s]} ${existing[s]} 条`);
-  if (dupIds.length) warnings.push(`以下记录在本机已存在（同一 ID）：${dupIds.join('、')}。默认跳过，不覆盖。`);
+  const dupIds = SECTIONS.filter((s) => existing[s] && s !== 'profile').map((s) => tx("{0} {1} 条", SECTION_LABEL[s], existing[s]));
+  if (dupIds.length) warnings.push(tx("以下记录在本机已存在（同一 ID）：{0}。默认跳过，不覆盖。", dupIds.join('、')));
   return { manifest, data, blobs, errors, warnings, existing, incoming, settings, encryptedKeys };
 }
 const tables = (d: ResumeDB) => ({ postings: d.postings, applications: d.applications, events: d.appEvents, artifacts: d.artifacts, attachments: d.attachments, jobs: d.jobs, resumes: d.resumes, jdGroups: d.jdGroups, resumeVersions: d.resumeVersions, templates: d.templates }) as const;
@@ -177,11 +178,11 @@ export interface RestoreResult {
 /** 恢复：单个事务写入，任一步失败整体回滚；覆盖资料前先存快照 */
 export async function restoreArchive(d: ResumeDB, chk: ArchiveCheck, opt: RestoreOptions): Promise<RestoreResult> {
   const expectedEpoch = await profileEpoch(d);
-  if (chk.errors.length) throw new Error(`备份验证未通过，未写入任何数据：${chk.errors.join('；')}`);
+  if (chk.errors.length) throw new Error(tx("备份验证未通过，未写入任何数据：{0}", chk.errors.join('；')));
   const available = new Set((await d.resumeVersions.toArray()).map((v) => v.id));
   if (opt.sections.includes('resumeVersions')) chk.data.resumeVersions.forEach((v) => available.add(v.id));
   const references = [...(opt.sections.includes('applications') ? chk.data.applications.map((a) => a.resumeVersionId) : []), ...(opt.sections.includes('artifacts') ? chk.data.artifacts.map((a) => a.versionId) : [])];
-  if (references.some((id) => id && !available.has(id))) throw new Error('所选申请 / 快照引用共用版本，请同时恢复「不可变共同简历版本」，没有写入任何数据');
+  if (references.some((id) => id && !available.has(id))) throw new Error(tx("所选申请 / 快照引用共用版本，请同时恢复「不可变共同简历版本」，没有写入任何数据"));
   const written = Object.fromEntries(SECTIONS.map((s) => [s, 0])) as Record<Section, number>, skipped = { ...written };
   let profileSnapshotId: string | null = null;
   const tbl = tables(d);
@@ -201,13 +202,13 @@ export async function restoreArchive(d: ResumeDB, chk: ArchiveCheck, opt: Restor
         if (!chk.data.profile) continue;
         const cur = await d.profile.get('me');
         if (cur && !opt.replaceProfile) { skipped.profile++; continue; }
-        if (cur) profileSnapshotId = await snapshotProfile(d, cur.doc, '导入完整求职档案前的资料');
+        if (cur) profileSnapshotId = await snapshotProfile(d, cur.doc, tx("导入完整求职档案前的资料"));
         await d.profile.put({ id: 'me', doc: chk.data.profile }); written.profile++; continue;
       }
       const t = tbl[s] as unknown as { bulkGet: (k: string[]) => Promise<unknown[]>; bulkPut: (x: unknown[]) => Promise<unknown> };
       const rows = chk.data[s] as { id: string }[];
       const ex = await t.bulkGet(rows.map((r) => r.id));
-      if (s === 'resumeVersions') for (let i = 0; i < rows.length; i++) if (ex[i] && canonicalJson(ex[i]) !== canonicalJson(rows[i])) throw new Error(`不可变共用版本冲突：${rows[i].id}，未覆盖任何数据`);
+      if (s === 'resumeVersions') for (let i = 0; i < rows.length; i++) if (ex[i] && canonicalJson(ex[i]) !== canonicalJson(rows[i])) throw new Error(tx("不可变共用版本冲突：{0}，未覆盖任何数据", rows[i].id));
       const put = rows.filter((_, i) => (opt.overwrite && s !== 'resumeVersions' && s !== 'artifacts') || !ex[i]);
       skipped[s] += rows.length - put.length;
       if (s === 'attachments') for (const a of put as Attachment[]) { const b = chk.blobs.get(a.id); if (b) await d.attachmentBlobs.put({ id: a.id, data: b }); }

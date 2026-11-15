@@ -1,4 +1,5 @@
 import { cloneElement, Fragment, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
+import { tx } from '../i18n/tx';
 import type { LayoutModel, LSection } from './layout';
 
 const PX = 3.7795; // px per mm
@@ -109,16 +110,16 @@ export function Preview({ m, scale = 0.75 }: { m: LayoutModel; scale?: number })
       ))}
       {(paginate || pages === 1) && blankMm > 1 && <div data-testid="a4-blank" style={{ position: 'absolute', left: ml, right: mr, top: bottomY, height: printEnd - bottomY,
         background: 'repeating-linear-gradient(135deg, rgba(245,166,35,.16) 0 6px, rgba(245,166,35,.04) 6px 12px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ ...lab, position: 'static', color: '#a35f00' }}>空白约 {Math.round(blankMm)} mm</span></div>}
+        <span style={{ ...lab, position: 'static', color: '#a35f00' }}>{tx("空白约 {0} mm", Math.round(blankMm))}</span></div>}
       {!paginate && Array.from({ length: pages - 1 }, (_, i) => (
         <div key={i} style={{ position: 'absolute', left: 0, right: 0, top: (i + 1) * H, borderTop: '2px dashed #d64545' }}>
-          <span style={{ ...lab, color: '#d64545', right: 6, top: 2 }}>第 {i + 1} 页结束 ↑ ／ 第 {i + 2} 页开始 ↓</span></div>
+          <span style={{ ...lab, color: '#d64545', right: 6, top: 2 }}>{tx("第 {0} 页结束 ↑ ／ 第 {1} 页开始 ↓", i + 1, i + 2)}</span></div>
       ))}
-      {pages > 1 && Array.from({ length: pages }, (_, i) => <span key={`n${i}`} style={{ ...lab, right: 2, top: i * step + 2, color: '#667085' }}>第 {i + 1} 页</span>)}
-      <span style={{ ...lab, left: 2, top: mt / 2 - 7 }}>上 {m.marginMm.top} mm</span>
-      <span style={{ ...lab, left: 2, top: mt + 20 }}>左 {m.marginMm.left} mm</span>
-      <span style={{ ...lab, right: 2, top: mt + 20 }}>右 {m.marginMm.right} mm</span>
-      <span style={{ ...lab, left: 2, top: (pages - 1) * step + H - mb / 2 - 7 }}>下 {m.marginMm.bottom} mm</span>
+      {pages > 1 && Array.from({ length: pages }, (_, i) => <span key={`n${i}`} style={{ ...lab, right: 2, top: i * step + 2, color: '#667085' }}>{tx("第 {0} 页", i + 1)}</span>)}
+      <span style={{ ...lab, left: 2, top: mt / 2 - 7 }}>{tx("上 {0} mm", m.marginMm.top)}</span>
+      <span style={{ ...lab, left: 2, top: mt + 20 }}>{tx("左 {0} mm", m.marginMm.left)}</span>
+      <span style={{ ...lab, right: 2, top: mt + 20 }}>{tx("右 {0} mm", m.marginMm.right)}</span>
+      <span style={{ ...lab, left: 2, top: (pages - 1) * step + H - mb / 2 - 7 }}>{tx("下 {0} mm", m.marginMm.bottom)}</span>
     </div>
   );
   const bands = paginate && pages > 1 && contentH > 0 && Array.from({ length: pages - 1 }, (_, i) => (
@@ -128,8 +129,8 @@ export function Preview({ m, scale = 0.75 }: { m: LayoutModel; scale?: number })
     <div style={{ flex: 'none' }}>
     {canGuide && (
       <div className="preview-guide-bar muted small" data-testid="a4-bar" style={{ width: wMm * PX * scale, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', margin: '0 0 4px' }}>
-        <label style={{ display: 'flex', flexDirection: 'row', gap: 4, alignItems: 'center', whiteSpace: 'nowrap', margin: 0 }}><input style={{ width: 'auto' }} type="checkbox" checked={guides} onChange={(e) => toggle(e.target.checked)} />显示 A4 边界</label>
-        {contentH > 0 && <span data-testid="a4-info">{m.pageSize} {wMm}×{hMm} mm · {pages} 页 · {pages === 1 ? '' : '末页'}已用 {usedPct}%{pages > 1 ? `（已超出 1 页，内容延伸到第 ${pages} 页）` : ''}{blankMm >= 0 ? `，${pages > 1 ? `第 ${pages} 页` : ''}底部空白约 ${Math.round(blankMm)} mm` : ''}</span>}
+        <label style={{ display: 'flex', flexDirection: 'row', gap: 4, alignItems: 'center', whiteSpace: 'nowrap', margin: 0 }}><input style={{ width: 'auto' }} type="checkbox" checked={guides} onChange={(e) => toggle(e.target.checked)} />{tx("显示 A4 边界")}</label>
+        {contentH > 0 && <span data-testid="a4-info">{m.pageSize} {wMm}×{hMm} mm · {tx("{0} 页", pages)} · {pages === 1 ? tx("已用 {0}%", usedPct) : tx("末页已用 {0}%", usedPct)}{pages > 1 ? tx("（已超出 1 页，内容延伸到第 {0} 页）", pages) : ''}{blankMm >= 0 ? (pages > 1 ? tx("，第 {0} 页底部空白约 {1} mm", pages, Math.round(blankMm)) : tx("，底部空白约 {0} mm", Math.round(blankMm))) : ''}</span>}
       </div>
     )}
     <div className="preview-wrap" style={{ width: wMm * PX * scale, minHeight: hMm * PX * scale, ...(scaledH ? { height: scaledH } : {}) }}>
@@ -138,7 +139,7 @@ export function Preview({ m, scale = 0.75 }: { m: LayoutModel; scale?: number })
         <div style={eng ? { display: 'flex', alignItems: 'flex-start', paddingBottom: 2, marginBottom: m.spacing.sectionGapMm * PX * 0.8 } : { display: 'flex', alignItems: 'center', borderBottom: `${m.headerStyle === 'band' ? 3 : 1}px solid ${m.headerStyle === 'band' ? m.colors.accent : m.colors.primary}`, paddingBottom: 6, marginBottom: m.spacing.sectionGapMm * PX }}>
           {m.photo?.position === 'left' && photo}
           <div style={{ flex: 1, textAlign: m.headerAlign }}>
-            <div style={{ fontSize: pt(ty.nameSizePt), fontWeight: 700, color: m.colors.primary, lineHeight: 1.2 }}>{m.header.name || '（姓名）'}</div>
+            <div style={{ fontSize: pt(ty.nameSizePt), fontWeight: 700, color: m.colors.primary, lineHeight: 1.2 }}>{m.header.name || (m.lang === 'zh' ? '（姓名）' : '(Name)')}</div>
             {m.header.headline && <div style={{ color: m.colors.accent, fontSize: pt(ty.bodySizePt + (eng ? 0.5 : 1.5)), marginTop: eng ? 2 : 0 }}>{m.header.headline}</div>}
             <div style={{ color: m.colors.muted, fontSize: pt(ty.bodySizePt - 0.5), marginTop: eng ? 2 : 0 }}>{[...m.header.contacts.map((t, i) => ({ t, h: m.header.hrefs?.[i] })), ...m.header.personal.map((t) => ({ t, h: undefined as string | undefined }))].map((x, i) => <span key={i}>{i > 0 ? (eng ? '  ·  ' : '  |  ') : ''}{x.h ? <a href={x.h} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{x.t}</a> : x.t}</span>)}</div>
           </div>

@@ -6,6 +6,7 @@ import { translateTexts } from '../ai/translate';
 import { crossCheck } from '../quality/factCheck';
 import { compareFacts } from '../ai/consistency';
 
+import { tx } from '../i18n/tx';
 /** 翻译建议只在组件内暂存；用户确认且原文未变时才写入资料字段。 */
 export function FixedSummaryEditor({ value, settings, onChange }: { value: LocalizedText; settings: Settings; onChange: (v: LocalizedText) => void }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
@@ -16,29 +17,29 @@ export function FixedSummaryEditor({ value, settings, onChange }: { value: Local
     setBusy(true); setError(''); setSuggestion(null);
     try {
       const result = (await translateTexts(settings, [{ key: 'fixed-summary', text: source }], to, [])).get('fixed-summary');
-      if (!result?.trim()) throw new Error('AI 未返回翻译建议');
+      if (!result?.trim()) throw new Error(tx("AI 未返回翻译建议"));
       const zh = to === 'zh' ? result : source, en = to === 'en' ? result : source;
       setSuggestion({ to, source, previous: value[to] ?? '', text: result, issues: [...compareFacts(source, result), ...crossCheck(zh, en)] });
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   };
   const changed = suggestion && (fixedSummaryText(value, suggestion.to === 'zh' ? 'en' : 'zh') !== suggestion.source || (value[suggestion.to] ?? '') !== suggestion.previous);
   return <div data-testid="fixed-summary-editor">
-    <LTField label="固定个人简介" multiline value={value} onChange={(v) => { setSuggestion(null); onChange(v); }} />
-    <p className="muted small">介绍教育身份、专业背景与真实工作实践。所有岗位复用已保存原文，可在每份简历中单独编辑。修改只影响以后生成的简历。缺少的语言不会自动补写。</p>
+    <LTField label={tx("固定个人简介")} multiline value={value} onChange={(v) => { setSuggestion(null); onChange(v); }} />
+    <p className="muted small">{tx("介绍教育身份、专业背景与真实工作实践。所有岗位复用已保存原文，可在每份简历中单独编辑。修改只影响以后生成的简历。缺少的语言不会自动补写。")}</p>
     {(['zh', 'en'] as const).filter((l) => (!fixedSummaryText(value, l) || value.status?.[l] === 'machine' || value.status?.[l] === 'stale') && fixedSummaryText(value, l === 'zh' ? 'en' : 'zh')).map((l) =>
-      <button key={l} disabled={busy} onClick={() => suggest(l)}>获取{l === 'zh' ? '中文' : '英文'}简介翻译建议（确认后保存）</button>)}
-    {busy && <div role="status">正在翻译固定简介；尚未写入资料…</div>}
+      <button key={l} disabled={busy} onClick={() => suggest(l)}>{tx("获取")}{l === 'zh' ? tx("中文") : tx("英文")}{tx("简介翻译建议（确认后保存）")}</button>)}
+    {busy && <div role="status">{tx("正在翻译固定简介；尚未写入资料…")}</div>}
     {error && <div className="notice error">{error}</div>}
     {suggestion && <div className="notice" data-testid="summary-translation-preview">
       <p>{suggestion.text}</p>
-      {suggestion.issues.length > 0 && <div className="err-text">事实核对未通过，请手动编辑并核实：{suggestion.issues.join('；')}</div>}
-      {changed && <div className="err-text">简介已修改，请重新获取建议。</div>}
+      {suggestion.issues.length > 0 && <div className="err-text">{tx("事实核对未通过，请手动编辑并核实：")}{suggestion.issues.join('；')}</div>}
+      {changed && <div className="err-text">{tx("简介已修改，请重新获取建议。")}</div>}
       <button disabled={!!changed || suggestion.issues.length > 0} onClick={() => {
         if (changed || suggestion.issues.length) return;
         onChange({ ...value, [suggestion.to]: suggestion.text, status: { ...value.status, [suggestion.to]: 'confirmed' }, srcSnapshot: suggestion.source });
         setSuggestion(null);
-      }}>确认译文并保存到我的资料</button>
-      <button onClick={() => setSuggestion(null)}>放弃建议</button>
+      }}>{tx("确认译文并保存到我的资料")}</button>
+      <button onClick={() => setSuggestion(null)}>{tx("放弃建议")}</button>
     </div>}
   </div>;
 }

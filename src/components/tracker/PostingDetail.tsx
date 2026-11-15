@@ -13,11 +13,12 @@ import type { Lang } from '../../types';
 import { defaultPdfLangs, isPdfArtifact, localStamp, listGeneratedResumes, removeResumePdf, storeResumePdfs, type GeneratedResumeOption } from '../../tracker/quickRecord';
 import { makeResumePdfs } from '../../tracker/resumePdf';
 
+import { tx } from '../../i18n/tx';
 const fmt = (s?: string) => localStamp(s);
 const safeHref = (u?: string) => (u && /^https?:\/\//i.test(u.trim()) ? u.trim() : undefined);
 export function ExtLink({ url, label }: { url?: string; label?: string }) {
   const h = safeHref(url); if (!url) return <span className="muted">—</span>;
-  return h ? <a href={h} target="_blank" rel="noopener noreferrer" data-testid="ext-link">{label ?? url} ↗</a> : <span title="不是 http(s) 链接，未设为可点击">{url}</span>;
+  return h ? <a href={h} target="_blank" rel="noopener noreferrer" data-testid="ext-link">{label ?? url} ↗</a> : <span title={tx("不是 http(s) 链接，未设为可点击")}>{url}</span>;
 }
 function guessKind(name: string, mime: string): AttachmentKind {
   if (/\.(pdf|docx?)$/i.test(name) && /简历|resume|cv/i.test(name)) return 'resume-submitted';
@@ -30,7 +31,7 @@ export function PostingDetail({ posting, go, onEdit, onDelete, onChanged }: { po
   /** v1.11：回到对应的岗位分析 / 简历制作记录（只读取，不修改） */
   const openAnalysis = async () => {
     const j = posting.jobParseId ? await db.jobs.get(posting.jobParseId) : undefined;
-    if (!j) { setMsg({ t: 'warn', m: '对应的岗位分析记录不存在（可能已删除），求职记录本身不受影响' }); return; }
+    if (!j) { setMsg({ t: 'warn', m: tx("对应的岗位分析记录不存在（可能已删除），求职记录本身不受影响") }); return; }
     const r = (await db.resumes.where('jobId').equals(j.id).toArray()).sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))[0];
     setJob(j); setResume(r ?? null); go('wizard');
   };
@@ -49,6 +50,7 @@ export function PostingDetail({ posting, go, onEdit, onDelete, onChanged }: { po
   const [pdfLangs, setPdfLangs] = useState<Lang[]>(['zh']);
   const [replaceGen, setReplaceGen] = useState(true);
   const [busy, setBusy] = useState('');
+  const pdfFailed = useRef(false);
   // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => { listGeneratedResumes(db).then((o) => {
     setOptions(o);
@@ -76,40 +78,42 @@ export function PostingDetail({ posting, go, onEdit, onDelete, onChanged }: { po
     const to = st.to as Application['status']; const at = st.at ? new Date(st.at).toISOString() : nowIso();
     if (!app) { const a = await createApplication(db, posting.id, to, st.note || undefined, at); setAppId(a.id); }
     else await changeStatus(db, app.id, to, st.note || undefined, at);
-    setSt({ to: '', note: '', at: '' }); await done(`状态已更新为「${STATUS_LABEL[to]}」，历史已保留`);
+    setSt({ to: '', note: '', at: '' }); await done(tx("状态已更新为「{0}」，历史已保留", STATUS_LABEL[to]));
   };
   /** 生成工具版 PDF 并存进本申请（替换旧的工具版；不影响自己上传的版本） */
   const storeGenerated = async (appIdArg: string, args: { profile: typeof profile; resume: NonNullable<typeof resume>; job: typeof job; tpl?: typeof template }, langs: Lang[]) => {
+    pdfFailed.current = false;
     if (!langs.length) return '';
-    setBusy('正在生成并存放简历 PDF…');
+    setBusy(tx("正在生成并存放简历 PDF…"));
     try {
       const r = await makeResumePdfs(args.profile, args.tpl ?? template, args.resume, args.job, { company: posting.company, title: posting.title }, langs);
       await storeResumePdfs(db, appIdArg, posting.id, r.files, 'generated', { replaceGenerated: true });
-      return r.errors.length ? `；PDF 有问题：${r.errors.join('；')}` : `；已存放工具生成的 ${r.files.map((f) => (f.lang === 'zh' ? '中文' : '英文')).join(' + ')} PDF`;
-    } catch (e) { return `；PDF 没有生成：${(e as Error).message}`; }
+      pdfFailed.current = r.errors.length > 0;
+      return r.errors.length ? tx("；PDF 有问题：{0}", r.errors.join('；')) : tx("；已存放工具生成的 {0} PDF", r.files.map((f) => (f.lang === 'zh' ? tx("中文") : tx("英文"))).join(' + '));
+    } catch (e) { pdfFailed.current = true; return tx("；PDF 没有生成：{0}", (e as Error).message); }
     finally { setBusy(''); }
   };
   const linkCurrent = async () => {
     const opt = options.find((o) => o.resume.id === pickId);
     const r = opt?.resume ?? resume, j = opt ? opt.job : job;
-    if (!r) return setMsg({ t: 'error', m: '还没有生成过简历。可以点「用这个 JD 生成简历」先生成。' });
+    if (!r) return setMsg({ t: 'error', m: tx("还没有生成过简历。可以点「用这个 JD 生成简历」先生成。") });
     const a = await ensureApp('preparing'); setAppId(a.id);
-    await linkResumeSnapshot(db, a.id, { resume: r, profile, job: j, label: `${posting.company} · ${posting.title} · 生成于 ${fmt(r.createdAt)}` });
+    await linkResumeSnapshot(db, a.id, { resume: r, profile, job: j, label: tx("{0} · {1} · 生成于 {2}", posting.company, posting.title, fmt(r.createdAt)) });
     const extra = await storeGenerated(a.id, { profile, resume: r, job: j }, pdfLangs);
-    await done(`已关联简历快照${extra}。之后修改资料或重新生成都不会改变它。`, extra.includes('没有生成') || extra.includes('有问题') ? 'warn' : 'ok');
+    await done(tx("已关联简历快照{0}。之后修改资料或重新生成都不会改变它。", extra), pdfFailed.current ? 'warn' : 'ok');
   };
   /** 用最近一次关联的快照重新生成工具版 PDF */
   const regenPdf = async () => {
     const snap = arts.find((a) => a.kind === 'snapshot');
-    if (!snap || !app) return setMsg({ t: 'error', m: '先关联一份简历，才能生成工具版 PDF' });
+    if (!snap || !app) return setMsg({ t: 'error', m: tx("先关联一份简历，才能生成工具版 PDF") });
     const sn = await resolveArtifact(db, snap).catch((e) => { setMsg({ t: 'error', m: (e as Error).message }); return null; });
     if (!sn?.resume || !sn.profile) return;
     const extra = await storeGenerated(app.id, { profile: sn.profile, resume: sn.resume, job: sn.job ?? null, tpl: sn.template ?? templates.find((t) => t.id === snap.templateId) }, pdfLangs);
-    await done(extra.replace(/^；/, '') || '没有选择语言', extra.includes('没有生成') || extra.includes('有问题') ? 'warn' : 'ok');
+    await done(extra.replace(/^；/, '') || tx("没有选择语言"), pdfFailed.current ? 'warn' : 'ok');
   };
   const removePdf = async (a: ResumeArtifact) => {
-    if (!confirm(`删除「${a.label}」？${a.origin === 'generated' ? '（工具生成的版本，之后可以重新生成）' : ''}`)) return;
-    await removeResumePdf(db, a); await done('已删除');
+    if (!confirm(tx("删除「{0}」？{1}", a.label, a.origin === 'generated' ? tx("（工具生成的版本，之后可以重新生成）") : ''))) return;
+    await removeResumePdf(db, a); await done(tx("已删除"));
   };
   const toGenerate = async () => {
     const a = await ensureApp('preparing');
@@ -123,21 +127,21 @@ export function PostingDetail({ posting, go, onEdit, onDelete, onChanged }: { po
     const errs: string[] = []; let n = 0;
     for (const f of [...files]) {
       try { await addAttachment(db, await readFile(f), { postingId: posting.id, applicationId: app?.id, kind: kind === 'auto' ? guessKind(f.name, f.type) : kind }); n++; }
-      catch (e) { errs.push(e instanceof StorageError ? e.message : `「${f.name}」保存失败：${(e as Error).message}`); }
+      catch (e) { errs.push(e instanceof StorageError ? e.message : tx("「{0}」保存失败：{1}", f.name, (e as Error).message)); }
     }
-    await done(errs.length ? `已保存 ${n} 个附件；${errs.join('；')}` : `已保存 ${n} 个附件（仅存本机浏览器，不会上传）`, errs.length ? 'error' : 'ok');
+    await done(errs.length ? tx("已保存 {0} 个附件；{1}", n, errs.join('；')) : tx("已保存 {0} 个附件（仅存本机浏览器，不会上传）", n), errs.length ? 'error' : 'ok');
   };
   const uploadSubmitted = async (files: FileList) => {
     const f = files[0]; if (!f) return;
     try {
       const a = await ensureApp('applied'); setAppId(a.id);
       await storeResumePdfs(db, a.id, posting.id, [{ ...(await readFile(f)), languages: upLangs.length ? upLangs : ['zh'] }], 'user', { replaceGenerated: replaceGen });
-      await done(`「${f.name}」已存为实际提交版本${replaceGen ? '，工具生成的版本已删除' : ''}`);
-    } catch (e) { await done(e instanceof StorageError ? e.message : `保存失败：${(e as Error).message}`, 'error'); }
+      await done(tx("「{0}」已存为实际提交版本{1}", f.name, replaceGen ? tx("，工具生成的版本已删除") : ''));
+    } catch (e) { await done(e instanceof StorageError ? e.message : tx("保存失败：{0}", (e as Error).message), 'error'); }
     finally { if (subRef.current) subRef.current.value = ''; }
   };
   const openAtt = async (a: Attachment, download: boolean) => {
-    const b = await db.attachmentBlobs.get(a.id); if (!b) return setMsg({ t: 'error', m: `附件「${a.name}」的文件本体缺失（可能来自不含附件的轻量备份）` });
+    const b = await db.attachmentBlobs.get(a.id); if (!b) return setMsg({ t: 'error', m: tx("附件「{0}」的文件本体缺失（可能来自不含附件的轻量备份）", a.name) });
     if (download) return downloadBytes(b.data, a.name, a.mime);
     const url = URL.createObjectURL(new Blob([b.data as BlobPart], { type: a.mime })); window.open(url, '_blank', 'noopener'); setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
@@ -145,117 +149,117 @@ export function PostingDetail({ posting, go, onEdit, onDelete, onChanged }: { po
     const snapshot = await resolveArtifact(db, art).catch((e) => { setMsg({ t: 'error', m: (e as Error).message }); return null; });
     if (!snapshot?.resume || !snapshot.profile) return;
     const tpl = snapshot.template ?? templates.find((t) => t.id === art.templateId) ?? template;
-    setMsg({ t: 'ok', m: '正在按快照重新生成文件…' });
+    setMsg({ t: 'ok', m: tx("正在按快照重新生成文件…") });
     try {
       const names = buildExportNames(snapshot.job?.company.short || posting.company, art.versionId ? 'JOINT' : guessRoleAbbr(posting.title), new Date(art.createdAt), 0);
       const r = await exportZip(snapshot.profile, tpl, snapshot.resume, names);
-      downloadBytes(r.zip, names.zipName.replace(/\.zip$/, '_快照.zip'), 'application/zip'); setMsg({ t: 'ok', m: '已按快照内容导出（与当时投递的内容一致）' });
-    } catch (e) { setMsg({ t: 'error', m: `导出失败：${(e as Error).message}` }); }
+      downloadBytes(r.zip, names.zipName.replace(/\.zip$/, '_快照.zip'), 'application/zip'); setMsg({ t: 'ok', m: tx("已按快照内容导出（与当时投递的内容一致）") });
+    } catch (e) { setMsg({ t: 'error', m: tx("导出失败：{0}", (e as Error).message) }); }
   };
   const upd = async (fn: (a: Application) => void) => { if (!app) return; const n = structuredClone(app); fn(n); await saveApplication(db, n); await load(); onChanged(); };
 
   return (
     <div className="tracker-detail" data-testid="posting-detail">
-      <div className="row"><button onClick={() => go('applications')}>← 返回列表</button><span className="spacer" /><button onClick={onEdit} data-testid="edit-posting">编辑</button><button className="danger" onClick={onDelete} data-testid="delete-posting">删除</button></div>
+      <div className="row"><button onClick={() => go('applications')}>{tx("← 返回列表")}</button><span className="spacer" /><button onClick={onEdit} data-testid="edit-posting">{tx("编辑")}</button><button className="danger" onClick={onDelete} data-testid="delete-posting">{tx("删除")}</button></div>
       <div className="card">
         <h2 data-testid="detail-title">{posting.company} · {posting.title}</h2>
-        <div className="chips">{posting.city && <span className="chip">📍 {posting.city}</span>}{posting.recruitType && <span className="chip">{RECRUIT_LABEL[posting.recruitType]}</span>}{posting.category && <span className="chip">{posting.category}</span>}{posting.companyType && <span className="chip">{posting.companyType}</span>}<span className="chip">优先级：{PRIORITY_LABEL[posting.priority]}</span>{posting.programYear && <span className="chip">{posting.programYear}</span>}</div>
+        <div className="chips">{posting.city && <span className="chip">📍 {posting.city}</span>}{posting.recruitType && <span className="chip">{RECRUIT_LABEL[posting.recruitType]}</span>}{posting.category && <span className="chip">{posting.category}</span>}{posting.companyType && <span className="chip">{posting.companyType}</span>}<span className="chip">{tx("优先级：")}{PRIORITY_LABEL[posting.priority]}</span>{posting.programYear && <span className="chip">{posting.programYear}</span>}</div>
         <div className="grid2 small">
-          <div>投递网址：<ExtLink url={posting.applyUrl} /></div><div>官方招聘：<ExtLink url={posting.officialUrl} /></div>
-          <div>来源平台：{posting.sourcePlatform || '—'}</div><div>截止日期：{posting.deadline || '—'}　发布：{posting.publishedAt || '—'}</div>
-          <div>薪资：{posting.salary || '—'}</div><div className="muted">创建 {fmt(posting.createdAt)} · 更新 {fmt(posting.updatedAt)} · 来源 {posting.source.kind === 'manual' ? '手动' : posting.source.kind === 'analysis' ? '岗位分析历史' : `${posting.source.kind}${posting.source.fileName ? `（${posting.source.fileName}）` : ''}`}</div>
+          <div>{tx("投递网址：")}<ExtLink url={posting.applyUrl} /></div><div>{tx("官方招聘：")}<ExtLink url={posting.officialUrl} /></div>
+          <div>{tx("来源平台：")}{posting.sourcePlatform || '—'}</div><div>{tx("截止日期：")}{posting.deadline || '—'}　{tx("发布：")}{posting.publishedAt || '—'}</div>
+          <div>{tx("薪资：")}{posting.salary || '—'}</div><div className="muted">{tx("创建")} {fmt(posting.createdAt)} {tx("· 更新")} {fmt(posting.updatedAt)} {tx("· 来源")} {posting.source.kind === 'manual' ? tx("手动") : posting.source.kind === 'analysis' ? tx("岗位分析历史") : `${posting.source.kind}${posting.source.fileName ? `（${posting.source.fileName}）` : ''}`}</div>
         </div>
-        {posting.jobParseId && <div className="small"><button className="link" data-testid="open-analysis" onClick={openAnalysis}>↩ 打开对应的岗位分析 / 简历制作记录</button></div>}
+        {posting.jobParseId && <div className="small"><button className="link" data-testid="open-analysis" onClick={openAnalysis}>{tx("↩ 打开对应的岗位分析 / 简历制作记录")}</button></div>}
         {posting.notes && <div className="notice">{posting.notes}</div>}
       </div>
       {msg && <div className={`notice ${msg.t}`} data-testid="detail-msg">{msg.m}</div>}
 
       <div className="grid2 top">
         <div className="card" data-testid="status-card">
-          <h4>申请状态 {apps.length > 1 && <select value={appId} onChange={(e) => setAppId(e.target.value)}>{apps.map((a, i) => <option key={a.id} value={a.id}>申请 {apps.length - i}（{STATUS_LABEL[a.status]}）</option>)}</select>}</h4>
-          <div className="big-status" data-testid="current-status">{app ? STATUS_LABEL[app.status] : '尚未建立申请（仅在岗位库中）'}</div>
-          {app?.appliedAt && <div className="muted small">投递时间：{fmt(app.appliedAt)}</div>}
+          <h4>{tx("申请状态")} {apps.length > 1 && <select value={appId} onChange={(e) => setAppId(e.target.value)}>{apps.map((a, i) => <option key={a.id} value={a.id}>{tx("申请")} {apps.length - i}（{STATUS_LABEL[a.status]}）</option>)}</select>}</h4>
+          <div className="big-status" data-testid="current-status">{app ? STATUS_LABEL[app.status] : tx("尚未建立申请（仅在岗位库中）")}</div>
+          {app?.appliedAt && <div className="muted small">{tx("投递时间：")}{fmt(app.appliedAt)}</div>}
           <div className="row">
-            {!app && <button data-testid="btn-save" onClick={async () => { const a = await createApplication(db, posting.id, 'saved'); setAppId(a.id); await done('已收藏'); }}>⭐ 收藏</button>}
-            <select data-testid="status-select" value={st.to} onChange={(e) => setSt({ ...st, to: e.target.value })}><option value="">更新状态为…</option>{APP_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</select>
-            <input type="datetime-local" title="发生时间（不填为现在）" value={st.at} onChange={(e) => setSt({ ...st, at: e.target.value })} />
+            {!app && <button data-testid="btn-save" onClick={async () => { const a = await createApplication(db, posting.id, 'saved'); setAppId(a.id); await done(tx("已收藏")); }}>{tx("⭐ 收藏")}</button>}
+            <select data-testid="status-select" value={st.to} onChange={(e) => setSt({ ...st, to: e.target.value })}><option value="">{tx("更新状态为…")}</option>{APP_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</select>
+            <input type="datetime-local" title={tx("发生时间（不填为现在）")} value={st.at} onChange={(e) => setSt({ ...st, at: e.target.value })} />
           </div>
-          <input data-testid="status-note" placeholder="备注（可选），如：收到测评邮件" value={st.note} onChange={(e) => setSt({ ...st, note: e.target.value })} />
-          <div className="row end"><button className="primary" data-testid="status-apply" disabled={!st.to} onClick={doStatus}>记录状态变化</button></div>
-          <h4>状态历史</h4>
-          <ol className="timeline" data-testid="history">{events.map((e) => <li key={e.id}><b>{localStamp(e.at, 10)}</b> {e.from ? `${STATUS_LABEL[e.from]} → ` : ''}<b>{STATUS_LABEL[e.to]}</b>{e.by === 'import' && <span className="chip">导入</span>}{e.note && <div className="muted small">{e.note}</div>}</li>)}{!events.length && <li className="muted">暂无记录</li>}</ol>
-          {app && <label>申请结果 / 结论<textarea rows={2} data-testid="result" defaultValue={app.result ?? ''} onBlur={(e) => upd((a) => { a.result = e.target.value; })} /></label>}
+          <input data-testid="status-note" placeholder={tx("备注（可选），如：收到测评邮件")} value={st.note} onChange={(e) => setSt({ ...st, note: e.target.value })} />
+          <div className="row end"><button className="primary" data-testid="status-apply" disabled={!st.to} onClick={doStatus}>{tx("记录状态变化")}</button></div>
+          <h4>{tx("状态历史")}</h4>
+          <ol className="timeline" data-testid="history">{events.map((e) => <li key={e.id}><b>{localStamp(e.at, 10)}</b> {e.from ? `${STATUS_LABEL[e.from]} → ` : ''}<b>{STATUS_LABEL[e.to]}</b>{e.by === 'import' && <span className="chip">{tx("导入")}</span>}{e.note && <div className="muted small">{e.note}</div>}</li>)}{!events.length && <li className="muted">{tx("暂无记录")}</li>}</ol>
+          {app && <label>{tx("申请结果 / 结论")}<textarea rows={2} data-testid="result" defaultValue={app.result ?? ''} onBlur={(e) => upd((a) => { a.result = e.target.value; })} /></label>}
         </div>
 
         <div className="card" data-testid="resume-card">
-          <h4>投递用的简历 PDF</h4>
-          <p className="muted small">默认存放本工具生成的 PDF；如果你自己微调过，删除默认版本并上传你的 PDF，以最后放进来的为「实际提交版本」。</p>
+          <h4>{tx("投递用的简历 PDF")}</h4>
+          <p className="muted small">{tx("默认存放本工具生成的 PDF；如果你自己微调过，删除默认版本并上传你的 PDF，以最后放进来的为「实际提交版本」。")}</p>
           <ul className="artifacts" data-testid="resume-pdfs">{arts.filter(isPdfArtifact).map((a) => { const x = atts.find((t) => t.id === a.attachmentId); return (
             <li key={a.id} data-testid="resume-pdf">
-              <span className={`chip ${a.origin === 'user' ? 'st-ok' : ''}`} data-testid="pdf-origin">{a.origin === 'generated' ? '工具生成' : a.origin === 'user' ? '我修改的版本' : '上传的文件'}</span>
-              {a.submitted && <span className="chip st-ok" data-testid="pdf-submitted">实际提交版本</span>} <b>{a.label}</b>
-              <span className="muted small"> {a.languages.map((l) => (l === 'zh' ? '中' : '英')).join('/')} · {fmt(a.createdAt)}{x ? ` · ${(x.size / 1024).toFixed(0)} KB` : ''}</span>
-              <div className="row">{x && <><button className="link" onClick={() => openAtt(x, false)}>预览</button><button className="link" onClick={() => openAtt(x, true)}>下载</button></>}
-                {!a.submitted && <button className="link" onClick={async () => { await db.artifacts.where('applicationId').equals(a.applicationId).modify((y: ResumeArtifact) => { y.submitted = y.id === a.id; }); await load(); }}>设为实际提交版本</button>}
-                <button className="link danger" data-testid="pdf-delete" onClick={() => removePdf(a)}>删除</button></div>
+              <span className={`chip ${a.origin === 'user' ? 'st-ok' : ''}`} data-testid="pdf-origin">{a.origin === 'generated' ? tx("工具生成") : a.origin === 'user' ? tx("我修改的版本") : tx("上传的文件")}</span>
+              {a.submitted && <span className="chip st-ok" data-testid="pdf-submitted">{tx("实际提交版本")}</span>} <b>{a.label}</b>
+              <span className="muted small"> {a.languages.map((l) => (l === 'zh' ? tx("中") : tx("英"))).join('/')} · {fmt(a.createdAt)}{x ? ` · ${(x.size / 1024).toFixed(0)} KB` : ''}</span>
+              <div className="row">{x && <><button className="link" onClick={() => openAtt(x, false)}>{tx("预览")}</button><button className="link" onClick={() => openAtt(x, true)}>{tx("下载")}</button></>}
+                {!a.submitted && <button className="link" onClick={async () => { await db.artifacts.where('applicationId').equals(a.applicationId).modify((y: ResumeArtifact) => { y.submitted = y.id === a.id; }); await load(); }}>{tx("设为实际提交版本")}</button>}
+                <button className="link danger" data-testid="pdf-delete" onClick={() => removePdf(a)}>{tx("删除")}</button></div>
             </li>); })}
-            {!arts.some(isPdfArtifact) && <li className="muted" data-testid="no-pdf">还没有简历 PDF。{arts.some((a) => a.kind === 'snapshot') ? '可点下面「生成工具版 PDF」。' : '先在下面关联一份生成过的简历，会自动存放 PDF。'}</li>}
+            {!arts.some(isPdfArtifact) && <li className="muted" data-testid="no-pdf">{tx("还没有简历 PDF。")}{arts.some((a) => a.kind === 'snapshot') ? tx("可点下面「生成工具版 PDF」。") : tx("先在下面关联一份生成过的简历，会自动存放 PDF。")}</li>}
           </ul>
           <div className="row small">
-            <button data-testid="upload-submitted" onClick={() => subRef.current?.click()}>📤 上传我修改后的 PDF</button>
-            {(['zh', 'en'] as Lang[]).map((l) => <label key={l} className="check"><input type="checkbox" checked={upLangs.includes(l)} onChange={(e) => setUpLangs(e.target.checked ? [...upLangs, l] : upLangs.filter((x) => x !== l))} />{l === 'zh' ? '中文' : '英文'}</label>)}
-            <label className="check"><input type="checkbox" data-testid="replace-generated" checked={replaceGen} onChange={(e) => setReplaceGen(e.target.checked)} />同时删除工具生成的版本</label>
+            <button data-testid="upload-submitted" onClick={() => subRef.current?.click()}>{tx("📤 上传我修改后的 PDF")}</button>
+            {(['zh', 'en'] as Lang[]).map((l) => <label key={l} className="check"><input type="checkbox" checked={upLangs.includes(l)} onChange={(e) => setUpLangs(e.target.checked ? [...upLangs, l] : upLangs.filter((x) => x !== l))} />{l === 'zh' ? tx("中文") : tx("英文")}</label>)}
+            <label className="check"><input type="checkbox" data-testid="replace-generated" checked={replaceGen} onChange={(e) => setReplaceGen(e.target.checked)} />{tx("同时删除工具生成的版本")}</label>
             <input ref={subRef} data-testid="submitted-input" type="file" accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden onChange={(e) => e.target.files && uploadSubmitted(e.target.files)} />
           </div>
           {busy && <div className="muted small" data-testid="pdf-busy">⏳ {busy}</div>}
 
-          <h4>关联的简历版本</h4>{app?.resumeVersionId && <p className="small" data-testid="shared-version-id">共同版本 ID：{app.resumeVersionId}</p>}
-          <p className="muted small">关联时会保存当时简历和资料的完整快照；之后修改资料或重新生成，已投递的版本都不会改变。</p>
+          <h4>{tx("关联的简历版本")}</h4>{app?.resumeVersionId && <p className="small" data-testid="shared-version-id">{tx("共同版本 ID：")}{app.resumeVersionId}</p>}
+          <p className="muted small">{tx("关联时会保存当时简历和资料的完整快照；之后修改资料或重新生成，已投递的版本都不会改变。")}</p>
           <div className="row small">
             <select data-testid="link-pick" value={pickId} onChange={(e) => { setPickId(e.target.value); setPdfLangs(defaultPdfLangs(options.find((o) => o.resume.id === e.target.value)?.job)); }} style={{ maxWidth: 380 }}>
-              {!options.length && <option value="">（还没有生成过简历）</option>}
+              {!options.length && <option value="">{tx("（还没有生成过简历）")}</option>}
               {options.map((o) => <option key={o.resume.id} value={o.resume.id}>{o.label}</option>)}
             </select>
-            <span>存 PDF：</span>{(['zh', 'en'] as Lang[]).map((l) => <label key={l} className="check"><input type="checkbox" data-testid={`link-pdf-${l}`} checked={pdfLangs.includes(l)} onChange={(e) => setPdfLangs(e.target.checked ? [...pdfLangs, l] : pdfLangs.filter((x) => x !== l))} />{l === 'zh' ? '中文' : '英文'}</label>)}
+            <span>{tx("存 PDF：")}</span>{(['zh', 'en'] as Lang[]).map((l) => <label key={l} className="check"><input type="checkbox" data-testid={`link-pdf-${l}`} checked={pdfLangs.includes(l)} onChange={(e) => setPdfLangs(e.target.checked ? [...pdfLangs, l] : pdfLangs.filter((x) => x !== l))} />{l === 'zh' ? tx("中文") : tx("英文")}</label>)}
           </div>
           <div className="row">
-            <button data-testid="link-current" disabled={!pickId && !resume || !!busy} onClick={linkCurrent}>🔗 关联这份简历</button>
-            {arts.some((a) => a.kind === 'snapshot') && <button data-testid="regen-pdf" disabled={!!busy || !pdfLangs.length} onClick={regenPdf}>🖨 生成工具版 PDF</button>}
-            <button data-testid="to-generate" onClick={toGenerate}>✨ 用这个 JD 生成简历</button>
+            <button data-testid="link-current" disabled={!pickId && !resume || !!busy} onClick={linkCurrent}>{tx("🔗 关联这份简历")}</button>
+            {arts.some((a) => a.kind === 'snapshot') && <button data-testid="regen-pdf" disabled={!!busy || !pdfLangs.length} onClick={regenPdf}>{tx("🖨 生成工具版 PDF")}</button>}
+            <button data-testid="to-generate" onClick={toGenerate}>{tx("✨ 用这个 JD 生成简历")}</button>
           </div>
           <ul className="artifacts" data-testid="artifacts">{arts.filter((a) => !isPdfArtifact(a)).map((a) => (
             <li key={a.id} data-testid="artifact">
-              {a.submitted && <span className="chip st-ok">实际提交版本</span>} <b>{a.label}</b> <span className="muted small">{a.languages.map((l) => (l === 'zh' ? '中' : '英')).join('/')} · 快照 · 简历生成于 {fmt(a.resumeCreatedAt)} · 关联于 {fmt(a.createdAt)}</span>
-              <div className="row"><button className="link" onClick={() => exportSnapshot(a)}>按快照导出 PDF/Word</button>
-                <button className="link" onClick={() => db.artifacts.update(a.id, { submitted: !a.submitted }).then(load)}>{a.submitted ? '取消「实际提交」标记' : '标记为实际提交版本'}</button></div>
-            </li>))}{!arts.some((a) => !isPdfArtifact(a)) && <li className="muted">还没有关联简历</li>}</ul>
+              {a.submitted && <span className="chip st-ok">{tx("实际提交版本")}</span>} <b>{a.label}</b> <span className="muted small">{a.languages.map((l) => (l === 'zh' ? tx("中") : tx("英"))).join('/')} {tx("· 快照 · 简历生成于")} {fmt(a.resumeCreatedAt)} {tx("· 关联于")} {fmt(a.createdAt)}</span>
+              <div className="row"><button className="link" onClick={() => exportSnapshot(a)}>{tx("按快照导出 PDF/Word")}</button>
+                <button className="link" onClick={() => db.artifacts.update(a.id, { submitted: !a.submitted }).then(load)}>{a.submitted ? tx("取消「实际提交」标记") : tx("标记为实际提交版本")}</button></div>
+            </li>))}{!arts.some((a) => !isPdfArtifact(a)) && <li className="muted">{tx("还没有关联简历")}</li>}</ul>
         </div>
       </div>
 
       <div className="card" data-testid="attachments-card">
-        <h4>附件（JD 截图、投递成功截图、笔试 / 面试通知、录用通知…）</h4>
+        <h4>{tx("附件（JD 截图、投递成功截图、笔试 / 面试通知、录用通知…）")}</h4>
         <div className="dropzone small" data-testid="att-drop" onClick={() => fileRef.current?.click()} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}>
-          <b>点击选择或拖入 PDF / DOCX / 图片</b><div className="muted small">文件只保存在本机浏览器（IndexedDB），单个上限 25 MB，不会发送给 AI 或上传</div>
+          <b>{tx("点击选择或拖入 PDF / DOCX / 图片")}</b><div className="muted small">{tx("文件只保存在本机浏览器（IndexedDB），单个上限 25 MB，不会发送给 AI 或上传")}</div>
           <input ref={fileRef} data-testid="att-input" type="file" multiple hidden accept=".pdf,.doc,.docx,image/*,.txt,.eml,.msg" onChange={(e) => e.target.files && addFiles(e.target.files)} />
         </div>
-        <div className="row small">附件类型：<select value={kind} onChange={(e) => setKind(e.target.value as AttachmentKind | 'auto')}><option value="auto">按文件名自动判断</option>{Object.entries(ATTACH_KIND_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
+        <div className="row small">{tx("附件类型：")}<select value={kind} onChange={(e) => setKind(e.target.value as AttachmentKind | 'auto')}><option value="auto">{tx("按文件名自动判断")}</option>{Object.entries(ATTACH_KIND_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
         <table className="items"><tbody>{atts.map((a) => (
           <tr key={a.id} data-testid="attachment-row"><td>{ATTACH_KIND_LABEL[a.kind]}</td><td><b>{a.name}</b><div className="muted small">{(a.size / 1024).toFixed(1)} KB · {fmt(a.uploadedAt)} · SHA-256 {a.sha256.slice(0, 12)}…</div>
-            <input className="small" placeholder="备注" defaultValue={a.note ?? ''} onBlur={(e) => db.attachments.update(a.id, { note: e.target.value })} /></td>
-            <td><button className="link" onClick={() => openAtt(a, false)}>预览</button><button className="link" onClick={() => openAtt(a, true)}>下载</button>
-              <button className="link" onClick={async () => setMsg((await verifyAttachment(db, a.id)) ? { t: 'ok', m: `「${a.name}」校验通过` } : { t: 'error', m: `「${a.name}」校验失败或文件缺失` })}>校验</button>
-              <button className="link danger" onClick={async () => { if (confirm(`删除附件「${a.name}」？`)) { await deleteAttachment(db, a.id); await done('附件已删除'); } }}>删除</button></td></tr>))}</tbody></table>
-        {!atts.length && <div className="muted small">暂无附件</div>}
+            <input className="small" placeholder={tx("备注")} defaultValue={a.note ?? ''} onBlur={(e) => db.attachments.update(a.id, { note: e.target.value })} /></td>
+            <td><button className="link" onClick={() => openAtt(a, false)}>{tx("预览")}</button><button className="link" onClick={() => openAtt(a, true)}>{tx("下载")}</button>
+              <button className="link" onClick={async () => setMsg((await verifyAttachment(db, a.id)) ? { t: 'ok', m: tx("「{0}」校验通过", a.name) } : { t: 'error', m: tx("「{0}」校验失败或文件缺失", a.name) })}>{tx("校验")}</button>
+              <button className="link danger" onClick={async () => { if (confirm(tx("删除附件「{0}」？", a.name))) { await deleteAttachment(db, a.id); await done(tx("附件已删除")); } }}>{tx("删除")}</button></td></tr>))}</tbody></table>
+        {!atts.length && <div className="muted small">{tx("暂无附件")}</div>}
       </div>
 
       <div className="grid2 top">
-        <div className="card" data-testid="todos-card"><h4>待办事项</h4>
-          {app ? <TodoList app={app} upd={upd} /> : <div className="muted small">建立申请后可添加待办（先收藏或更新状态）</div>}</div>
-        <div className="card" data-testid="interviews-card"><h4>面试 / 笔试安排</h4>
-          {app ? <InterviewList app={app} upd={upd} /> : <div className="muted small">建立申请后可记录面试</div>}</div>
+        <div className="card" data-testid="todos-card"><h4>{tx("待办事项")}</h4>
+          {app ? <TodoList app={app} upd={upd} /> : <div className="muted small">{tx("建立申请后可添加待办（先收藏或更新状态）")}</div>}</div>
+        <div className="card" data-testid="interviews-card"><h4>{tx("面试 / 笔试安排")}</h4>
+          {app ? <InterviewList app={app} upd={upd} /> : <div className="muted small">{tx("建立申请后可记录面试")}</div>}</div>
       </div>
 
-      <div className="card"><h4>完整 JD 原文</h4>{posting.description && <p>{posting.description}</p>}<pre className="jd" data-testid="jd-text">{posting.jdText || '（未填写）'}</pre>{posting.requirements && <><h4>岗位要求</h4><pre className="jd">{posting.requirements}</pre></>}</div>
+      <div className="card"><h4>{tx("完整 JD 原文")}</h4>{posting.description && <p>{posting.description}</p>}<pre className="jd" data-testid="jd-text">{posting.jdText || tx("（未填写）")}</pre>{posting.requirements && <><h4>{tx("岗位要求")}</h4><pre className="jd">{posting.requirements}</pre></>}</div>
     </div>
   );
 }
@@ -264,15 +268,15 @@ function TodoList({ app, upd }: { app: Application; upd: (fn: (a: Application) =
   const [t, setT] = useState(''), [due, setDue] = useState('');
   return (<>
     <ul className="todos">{app.todos.map((x) => <li key={x.id}><label className="check"><input type="checkbox" checked={x.done} onChange={() => upd((a) => { const y = a.todos.find((z) => z.id === x.id)!; y.done = !y.done; })} /> <span className={x.done ? 'muted strike' : ''}>{x.text}</span></label> {x.due && <span className="chip">{x.due}</span>} <button className="link" onClick={() => upd((a) => { a.todos = a.todos.filter((z) => z.id !== x.id); })}>×</button></li>)}</ul>
-    <div className="row"><input data-testid="todo-text" placeholder="如：完成在线测评" value={t} onChange={(e) => setT(e.target.value)} /><input type="date" data-testid="todo-due" value={due} onChange={(e) => setDue(e.target.value)} /><button data-testid="todo-add" disabled={!t.trim()} onClick={() => upd((a) => { a.todos.push({ id: uid('todo'), text: t.trim(), due: due || undefined, done: false, createdAt: nowIso() }); }).then(() => { setT(''); setDue(''); })}>添加</button></div>
+    <div className="row"><input data-testid="todo-text" placeholder={tx("如：完成在线测评")} value={t} onChange={(e) => setT(e.target.value)} /><input type="date" data-testid="todo-due" value={due} onChange={(e) => setDue(e.target.value)} /><button data-testid="todo-add" disabled={!t.trim()} onClick={() => upd((a) => { a.todos.push({ id: uid('todo'), text: t.trim(), due: due || undefined, done: false, createdAt: nowIso() }); }).then(() => { setT(''); setDue(''); })}>{tx("添加")}</button></div>
   </>);
 }
 function InterviewList({ app, upd }: { app: Application; upd: (fn: (a: Application) => void) => Promise<void> }) {
   const [v, setV] = useState({ at: '', round: '', mode: '', notes: '' });
   return (<>
     <ul className="todos">{[...app.interviews].sort((a, b) => a.at.localeCompare(b.at)).map((x) => <li key={x.id}><b>{x.at.replace('T', ' ')}</b> {x.round} {x.mode && <span className="chip">{x.mode}</span>}{x.notes && <div className="muted small">{x.notes}</div>} <button className="link" onClick={() => upd((a) => { a.interviews = a.interviews.filter((z) => z.id !== x.id); })}>×</button></li>)}</ul>
-    <div className="row"><input type="datetime-local" data-testid="iv-at" value={v.at} onChange={(e) => setV({ ...v, at: e.target.value })} /><input data-testid="iv-round" placeholder="轮次，如：一面 / 笔试" value={v.round} onChange={(e) => setV({ ...v, round: e.target.value })} /><input placeholder="形式：线上 / 现场" value={v.mode} onChange={(e) => setV({ ...v, mode: e.target.value })} /></div>
-    <textarea rows={2} placeholder="面试备注 / 复盘" value={v.notes} onChange={(e) => setV({ ...v, notes: e.target.value })} />
-    <div className="row end"><button data-testid="iv-add" disabled={!v.at || !v.round.trim()} onClick={() => upd((a) => { a.interviews.push({ id: uid('iv'), at: v.at, round: v.round.trim(), mode: v.mode || undefined, notes: v.notes || undefined, createdAt: nowIso() }); }).then(() => setV({ at: '', round: '', mode: '', notes: '' }))}>添加安排</button></div>
+    <div className="row"><input type="datetime-local" data-testid="iv-at" value={v.at} onChange={(e) => setV({ ...v, at: e.target.value })} /><input data-testid="iv-round" placeholder={tx("轮次，如：一面 / 笔试")} value={v.round} onChange={(e) => setV({ ...v, round: e.target.value })} /><input placeholder={tx("形式：线上 / 现场")} value={v.mode} onChange={(e) => setV({ ...v, mode: e.target.value })} /></div>
+    <textarea rows={2} placeholder={tx("面试备注 / 复盘")} value={v.notes} onChange={(e) => setV({ ...v, notes: e.target.value })} />
+    <div className="row end"><button data-testid="iv-add" disabled={!v.at || !v.round.trim()} onClick={() => upd((a) => { a.interviews.push({ id: uid('iv'), at: v.at, round: v.round.trim(), mode: v.mode || undefined, notes: v.notes || undefined, createdAt: nowIso() }); }).then(() => setV({ at: '', round: '', mode: '', notes: '' }))}>{tx("添加安排")}</button></div>
   </>);
 }

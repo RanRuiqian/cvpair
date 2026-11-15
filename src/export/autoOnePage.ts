@@ -1,6 +1,7 @@
 import type { Lang, TemplateConfig } from '../types';
 import { withLangOverrides } from '../render/langOverrides';
 
+import { tx } from '../i18n/tx';
 /**
  * 「自动调整为 1 页」：只动版式参数，不删内容。
  * 把正文字号、行距、板块间距、条目间距、页边距**同比例**从当前值往下限推（调整幅度 t：0 = 不动，1 = 推到下限），
@@ -63,7 +64,7 @@ export async function fitToOnePage(tpl: TemplateConfig, measure: (t: TemplateCon
     const cur = current(work, l);
     const pagesAt = async (t: number) => {
       const m = await measure(withParams(work, l, paramsAt(cur, t)));
-      if (!m) throw new Error('页数测量不可用，无法自动调整');
+      if (!m) throw new Error(tx("页数测量不可用，无法自动调整"));
       return m[l].pages;
     };
     if (await pagesAt(0) <= target) { out[l] = { status: 'already', before: cur, after: cur }; continue; }
@@ -80,7 +81,7 @@ export async function fitToOnePage(tpl: TemplateConfig, measure: (t: TemplateCon
 /** 给用户看的一句话：这一种语言调成了什么样。 */
 export function describeFit(f: LangFit): string {
   const d = (a: number, b: number, unit: string, label: string) => (Math.abs(a - b) < 1e-6 ? '' : `${label} ${a}→${b}${unit}`);
-  const parts = [d(f.before.body, f.after.body, ' pt', '正文'), d(f.before.lh, f.after.lh, '', '行距'), d(f.before.sg, f.after.sg, ' mm', '板块间距'), d(f.before.ig, f.after.ig, ' mm', '条目间距'),
-    d(f.before.mg.top, f.after.mg.top, ' mm', '页边距')].filter(Boolean);
-  return parts.join('，') || '无变化';
+  const parts = [d(f.before.body, f.after.body, ' pt', tx("正文")), d(f.before.lh, f.after.lh, '', tx("行距")), d(f.before.sg, f.after.sg, ' mm', tx("板块间距")), d(f.before.ig, f.after.ig, ' mm', tx("条目间距")),
+    d(f.before.mg.top, f.after.mg.top, ' mm', tx("页边距"))].filter(Boolean);
+  return parts.join('，') || tx("无变化");
 }

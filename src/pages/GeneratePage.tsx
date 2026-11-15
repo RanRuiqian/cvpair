@@ -14,6 +14,7 @@ import { Preview } from '../render/Preview';
 import { ExportDialog } from '../components/ExportDialog';
 import { ItemsEditor } from '../components/ItemsEditor';
 
+import { tx } from '../i18n/tx';
 export function GeneratePage({ go }: { go: (p: string) => void }) {
   const { profile, settings, job, resume, setResume, template, templates, templateId, setTemplateId } = useApp();
   const t = useT();
@@ -35,8 +36,8 @@ export function GeneratePage({ go }: { go: (p: string) => void }) {
     if (!resume) return;
     const ids = resume.items.filter((i) => i.syncStatus !== 'in-sync').map((i) => i.sourceId);
     if (settings.demoMode) { setResume(runConsistency({ ...resume, items: resume.items.map((i) => ({ ...i, syncStatus: 'in-sync' })) })); return; }
-    setBusy('重新本地化待同步条目…');
-    try { const translated = await localizeAi(settings, profile, job, resume, ids); if (latestResume.current === resume) setResume(translated); else setErr('同步期间简历已修改，保留当前编辑；可按需再次同步。'); } catch (e) { setErr((e as Error).message); } finally { setBusy(''); }
+    setBusy(tx("重新本地化待同步条目…"));
+    try { const translated = await localizeAi(settings, profile, job, resume, ids); if (latestResume.current === resume) setResume(translated); else setErr(tx("同步期间简历已修改，保留当前编辑；可按需再次同步。")); } catch (e) { setErr((e as Error).message); } finally { setBusy(''); }
   };
   const pending = resume?.items.filter((i) => i.syncStatus !== 'in-sync').length ?? 0;
 
@@ -47,14 +48,14 @@ export function GeneratePage({ go }: { go: (p: string) => void }) {
         <span className="spacer" />
         <button className="primary big" onClick={() => setShowExport(true)}>⬇ {t('exportZip')}</button>
       </div>
-      {!job ? <div className="notice warn">请先在「岗位解析」页解析一个岗位。<button className="link" onClick={() => go('job')}>去解析 →</button></div> : (
+      {!job ? <div className="notice warn">{tx("请先在「岗位解析」页解析一个岗位。")}<button className="link" onClick={() => go('job')}>{tx("去解析 →")}</button></div> : (
         <div className="card">
           <div className="row">
-            <b>{job.company.short || '（未识别公司）'} · {job.title.zh || job.title.en} {job.roleAbbr && `(${job.roleAbbr})`}</b>
-            <label>主版本语言 <select value={primary} onChange={(e) => setPrimary(e.target.value as Lang)}><option value="zh">中文</option><option value="en">English</option></select></label>
-            <label>模板 <select value={templateId} onChange={(e) => setTemplateId(e.target.value)}>{templates.map((x) => <option key={x.id} value={x.id}>{x.name.zh}</option>)}</select></label>
+            <b>{job.company.short || tx("（未识别公司）")} · {job.title.zh || job.title.en} {job.roleAbbr && `(${job.roleAbbr})`}</b>
+            <label>{tx("主版本语言")} <select value={primary} onChange={(e) => setPrimary(e.target.value as Lang)}><option value="zh">{tx("中文")}</option><option value="en">English</option></select></label>
+            <label>{tx("模板")} <select value={templateId} onChange={(e) => setTemplateId(e.target.value)}>{templates.map((x) => <option key={x.id} value={x.id}>{x.name.zh}</option>)}</select></label>
             <button className="primary" disabled={!!busy} onClick={run}>{t('generate')}</button>
-            {settings.demoMode && <span className="badge st-machine">演示模式：规则匹配，不改写</span>}
+            {settings.demoMode && <span className="badge st-machine">{tx("演示模式：规则匹配，不改写")}</span>}
           </div>
           <AiDisclosure />
           {busy && <div className="notice">{busy}</div>}
@@ -64,17 +65,17 @@ export function GeneratePage({ go }: { go: (p: string) => void }) {
       {resume && (
         <>
           <div className="card">
-            <b>{resume.generatedBy === 'ai' ? 'AI 已完成岗位选材与撰写' : '演示简历（未调用 AI）'}</b>
-            <p className="muted small">左侧勾选、编辑、排序，右侧实时更新。调整素材不调用 AI，也不修改个人资料库。</p>
+            <b>{resume.generatedBy === 'ai' ? tx("AI 已完成岗位选材与撰写") : tx("演示简历（未调用 AI）")}</b>
+            <p className="muted small">{tx("左侧勾选、编辑、排序，右侧实时更新。调整素材不调用 AI，也不修改个人资料库。")}</p>
             <ResumeNotice />
-            {pending > 0 && <div className="notice warn">{pending} 条文字的另一语言可按需同步，不影响下载。<button onClick={resync}>重新本地化</button></div>}
+            {pending > 0 && <div className="notice warn">{pending} {tx("条文字的另一语言可按需同步，不影响下载。")}<button onClick={resync}>{tx("重新本地化")}</button></div>}
           </div>
-          <details className="card"><summary>中英文逐条编辑</summary><ItemsEditor /></details>
+          <details className="card"><summary>{tx("中英文逐条编辑")}</summary><ItemsEditor /></details>
         </>
       )}
       <div className="card">
         <div className="row"><h4>{t('preview')}</h4>
-          {(['zh', 'en', 'both'] as const).map((v) => <button key={v} className={view === v ? 'active' : ''} onClick={() => setView(v)}>{v === 'zh' ? 'CN' : v === 'en' ? 'EN' : 'CN | EN 并排'}</button>)}
+          {(['zh', 'en', 'both'] as const).map((v) => <button key={v} className={view === v ? 'active' : ''} onClick={() => setView(v)}>{v === 'zh' ? 'CN' : v === 'en' ? 'EN' : tx("CN | EN 并排")}</button>)}
         </div>
         <div className="pool-layout">
           {resume && <MaterialPool />}

@@ -4,6 +4,7 @@ import { auditResume } from '../audit/factAudit';
 import { profileForGeneration } from '../privacy/resume';
 import type { Application, AppStatus, ApplicationEvent, Attachment, AttachmentKind, JobPosting, Priority, ResumeArtifact, SourceInfo } from './types';
 
+import { tx } from '../i18n/tx';
 export const nowIso = () => new Date().toISOString();
 /** 稳定唯一 ID：前缀 + 时间 + 随机；导入 / 恢复时保持原 ID 不变 */
 let uidSeq = 0;
@@ -58,9 +59,9 @@ export async function updatePosting(d: ResumeDB, p: JobPosting): Promise<JobPost
   const n = { ...p, updatedAt: nowIso() }; await d.postings.put(n); return n;
 }
 export async function copyPosting(d: ResumeDB, id: string): Promise<JobPosting> {
-  const p = await d.postings.get(id); if (!p) throw new Error('岗位不存在');
+  const p = await d.postings.get(id); if (!p) throw new Error(tx("岗位不存在"));
   const { id: _i, createdAt: _c, updatedAt: _u, source: _s, ...rest } = p;
-  const n = newPosting({ ...rest, title: `${p.title}（副本）`, source: { kind: 'manual' } });
+  const n = newPosting({ ...rest, title: tx("{0}（副本）", p.title), source: { kind: 'manual' } });
   await d.postings.add(n); return n;
 }
 /** 删除前的影响评估：关联的申请 / 附件 / 简历快照 */
@@ -94,7 +95,7 @@ export async function createApplication(d: ResumeDB, postingId: string, status: 
 /** 修改状态：只追加历史，不覆盖之前的记录 */
 export async function changeStatus(d: ResumeDB, appId: string, to: AppStatus, note?: string, at = nowIso()): Promise<Application> {
   return d.transaction('rw', d.applications, d.appEvents, async () => {
-    const a = await d.applications.get(appId); if (!a) throw new Error('申请记录不存在');
+    const a = await d.applications.get(appId); if (!a) throw new Error(tx("申请记录不存在"));
     const ev: ApplicationEvent = { id: uid('evt'), applicationId: appId, from: a.status, to, at, note, by: 'user' };
     await d.appEvents.add(ev);
     const n: Application = { ...a, status: to, updatedAt: nowIso(), ...(to === 'applied' && !a.appliedAt ? { appliedAt: at } : {}) };
@@ -111,7 +112,7 @@ export async function linkResumeSnapshot(d: ResumeDB, appId: string, args: { res
   const au = auditResume(args.profile, args.resume).summary;
   const art: ResumeArtifact = {
     id: uid('art'), applicationId: appId, kind: 'snapshot',
-    label: args.label ?? `${args.job?.company.short || args.job?.company.full || '简历'} · ${args.resume.createdAt.slice(0, 16).replace('T', ' ')}`,
+    label: args.label ?? `${args.job?.company.short || args.job?.company.full || tx("简历")} · ${args.resume.createdAt.slice(0, 16).replace('T', ' ')}`,
     languages: args.languages ?? ['zh', 'en'], createdAt: nowIso(),
     resumeId: args.resume.id, resumeCreatedAt: args.resume.createdAt, templateId: args.resume.templateId,
     resume: structuredClone(args.resume), profile: profileForGeneration(args.profile), job: args.job ? structuredClone(args.job) : null,
@@ -129,11 +130,11 @@ export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 export class StorageError extends Error {}
 function quotaMessage(e: unknown): string | null {
   const n = (e as { name?: string; inner?: { name?: string } })?.name, inner = (e as { inner?: { name?: string } })?.inner?.name;
-  return n === 'QuotaExceededError' || inner === 'QuotaExceededError' ? '浏览器存储空间不足，附件没有保存。请先导出完整档案备份，再删除不需要的附件后重试。' : null;
+  return n === 'QuotaExceededError' || inner === 'QuotaExceededError' ? tx("浏览器存储空间不足，附件没有保存。请先导出完整档案备份，再删除不需要的附件后重试。") : null;
 }
 /** 保存附件：先写二进制再写元数据（同一事务，失败全部回滚，不会出现只有元数据的「幽灵附件」） */
 export async function addAttachment(d: ResumeDB, file: { name: string; type: string; data: Uint8Array }, meta: { postingId?: string; applicationId?: string; kind: AttachmentKind; note?: string; id?: string; uploadedAt?: string }): Promise<Attachment> {
-  if (file.data.byteLength > MAX_ATTACHMENT_BYTES) throw new StorageError(`「${file.name}」有 ${(file.data.byteLength / 1048576).toFixed(1)} MB，超过单个附件 25 MB 的上限，没有保存。`);
+  if (file.data.byteLength > MAX_ATTACHMENT_BYTES) throw new StorageError(tx("「{0}」有 {1} MB，超过单个附件 25 MB 的上限，没有保存。", file.name, (file.data.byteLength / 1048576).toFixed(1)));
   const a: Attachment = { id: meta.id ?? uid('att'), postingId: meta.postingId, applicationId: meta.applicationId, kind: meta.kind, name: file.name, mime: file.type || 'application/octet-stream', size: file.data.byteLength, sha256: await sha256Hex(file.data), uploadedAt: meta.uploadedAt ?? nowIso(), note: meta.note };
   try {
     await d.transaction('rw', d.attachments, d.attachmentBlobs, async () => { await d.attachmentBlobs.put({ id: a.id, data: file.data }); await d.attachments.put(a); });
@@ -177,7 +178,7 @@ export async function analysisDuplicates(d: ResumeDB, job: JobParse): Promise<Du
   if (!norm(c.company) || !norm(c.title)) return [];
   return (await d.postings.toArray()).filter((p) => norm(p.company) === norm(c.company) && norm(p.title) === norm(c.title)).map((posting) => ({ posting, reason: 'same-key' as const }));
 }
-export async function addFromAnalysis(d: ResumeDB, job: JobParse, note = '从岗位分析历史加入'): Promise<{ posting: JobPosting; application?: Application; existed: boolean }> {
+export async function addFromAnalysis(d: ResumeDB, job: JobParse, note = tx("从岗位分析历史加入")): Promise<{ posting: JobPosting; application?: Application; existed: boolean }> {
   const linked = await findAnalysisLink(d, job.id);
   if (linked) return { posting: linked, existed: true };
   const r = await addPosting(d, postingFromAnalysis(job), 'pending', note);
@@ -185,7 +186,7 @@ export async function addFromAnalysis(d: ResumeDB, job: JobParse, note = '从岗
 }
 /** 已有同公司同岗位记录时，用户选择「关联到已有记录」：只补 jobParseId（已有字段一律不改） */
 export async function linkAnalysis(d: ResumeDB, postingId: string, jobId: string): Promise<JobPosting> {
-  const p = await d.postings.get(postingId); if (!p) throw new Error('岗位不存在');
+  const p = await d.postings.get(postingId); if (!p) throw new Error(tx("岗位不存在"));
   if (p.jobParseId) return p;
   return updatePosting(d, { ...p, jobParseId: jobId });
 }

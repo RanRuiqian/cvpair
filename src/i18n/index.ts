@@ -11,7 +11,7 @@ const zh = {
 };
 type Dict = typeof zh;
 const en: Partial<Dict> = {
-  appName: 'CVPair', navWizard: 'Start', navApplications: 'Applications', navProfile: 'Profile', navJob: 'Job Parsing', navGenerate: 'Generate', navLayout: 'Layout', navSettings: 'Settings',
+  appName: 'CVPair', privacy: 'Your data is stored only in this browser (IndexedDB). When AI is used, your data and the JD are sent directly to the provider you configured; photo, date of birth, gender and hometown are never sent.', navWizard: 'Start', navApplications: 'Applications', navProfile: 'Profile', navJob: 'Job Parsing', navGenerate: 'Generate', navLayout: 'Layout', navSettings: 'Settings',
   demoBadge: 'Demo mode (no API key)', save: 'Save', cancel: 'Cancel', add: 'Add', remove: 'Delete', up: 'Up', down: 'Down',
   exportZip: 'Export zip', importJson: 'Import JSON', exportJson: 'Export JSON', loadSample: 'Load sample', translateToEn: 'AI translate → EN',
   translateToZh: 'AI translate → ZH', parse: 'Parse job', ocr: 'OCR screenshot', generate: 'Generate CN + EN', preview: 'Preview',

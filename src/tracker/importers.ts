@@ -1,8 +1,9 @@
 import type { ResumeDB } from '../storage/db';
+import { txDeep } from '../i18n/tx';
 import { createApplication, findDuplicates, newPosting, normUrl, nowIso, uid } from './repo';
 import { latestByPosting } from './stats';
 import type { Application, AppStatus, JobPosting, Priority, RecruitType, SourceInfo } from './types';
-import { STATUS_LABEL } from './types';
+import { STATUS_LABEL, STATUS_LABEL_ZH } from './types';
 
 export type RawRecord = Record<string, unknown>;
 export type SourceKind = 'csv' | 'json' | 'ran-application-handoff';
@@ -115,11 +116,11 @@ export function parseImportFile(text: string, fileName: string): ParsedSource {
 /* ---------- 字段映射 ---------- */
 export const TARGET_FIELDS = ['company', 'title', 'city', 'category', 'status', 'applyUrl', 'officialUrl', 'recruitType', 'companyType', 'sourcePlatform', 'programYear', 'publishedAt', 'deadline', 'appliedAt', 'priority', 'salary', 'jdText', 'notes'] as const;
 export type TargetField = (typeof TARGET_FIELDS)[number];
-export const TARGET_LABEL: Record<TargetField, string> = {
+export const TARGET_LABEL: Record<TargetField, string> = txDeep({
   company: '企业', title: '岗位', city: '城市', category: '类别', status: '状态', applyUrl: '投递链接', officialUrl: '官方招聘网址', recruitType: '招聘类型',
   companyType: '企业类型', sourcePlatform: '来源平台', programYear: '项目年份', publishedAt: '发布日期', deadline: '截止日期', appliedAt: '投递日期', priority: '优先级',
   salary: '薪资', jdText: 'JD 原文', notes: '备注',
-};
+});
 const ALIASES: Record<TargetField, string[]> = {
   company: ['企业', '公司', '公司名称', '企业名称', '单位', 'company', 'companyname', 'employer', 'org', 'organization'],
   title: ['岗位', '职位', '岗位名称', '职位名称', 'title', 'position', 'role', 'job', 'jobtitle', 'name'],
@@ -163,7 +164,7 @@ const STATUS_WORDS: [AppStatus, RegExp][] = [
 /** 识别状态文本；无法识别返回 null（绝不猜成「已投递」） */
 export function mapStatus(raw: unknown): AppStatus | null {
   const s = String(raw ?? '').trim(); if (!s) return null;
-  for (const st of Object.keys(STATUS_LABEL) as AppStatus[]) if (STATUS_LABEL[st] === s || st === s.toLowerCase()) return st;
+  for (const st of Object.keys(STATUS_LABEL) as AppStatus[]) if (STATUS_LABEL_ZH[st] === s || STATUS_LABEL[st] === s || st === s.toLowerCase()) return st;
   for (const [st, re] of STATUS_WORDS) if (re.test(s)) return st;
   return null;
 }

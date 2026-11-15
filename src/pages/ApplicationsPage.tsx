@@ -12,6 +12,7 @@ import { ImportPanel } from '../components/tracker/ImportPanel';
 import { BackupPanel } from '../components/tracker/BackupPanel';
 import { QuickRecord } from '../components/tracker/QuickRecord';
 
+import { tx } from '../i18n/tx';
 /** 求职投递：岗位库 + 申请进度 + 详情 + 统计 + 导入 + 备份。路由：#applications[/new|/import|/backup|/<岗位id>[/edit]] */
 export function ApplicationsPage({ sub, go }: { sub: string; go: (p: string) => void }) {
   const { isDemo, settings } = useApp();
@@ -34,11 +35,11 @@ export function ApplicationsPage({ sub, go }: { sub: string; go: (p: string) => 
   });
   const del = async (id: string) => {
     const p = postings.find((x) => x.id === id); const imp = await deleteImpact(db, id);
-    const warn = imp.applications || imp.attachments ? `\n\n⚠ 将同时删除：${imp.applications} 条申请记录、${imp.events} 条状态历史、${imp.artifacts} 个简历版本、${imp.attachments} 个附件。建议先在「备份与恢复」导出完整档案。` : '';
-    if (!confirm(`删除岗位「${p?.company} · ${p?.title}」？${warn}`)) return;
+    const warn = imp.applications || imp.attachments ? tx("\n\n⚠ 将同时删除：{0} 条申请记录、{1} 条状态历史、{2} 个简历版本、{3} 个附件。建议先在「备份与恢复」导出完整档案。", imp.applications, imp.events, imp.artifacts, imp.attachments) : '';
+    if (!confirm(tx("删除岗位「{0} · {1}」？{2}", p?.company, p?.title, warn))) return;
     await deletePosting(db, id); await reload(); go('applications');
   };
-  if (!loaded) return <div className="page">加载中…</div>;
+  if (!loaded) return <div className="page">{tx("加载中…")}</div>;
 
   const tabs = (
     <div className="row tracker-tabs">
@@ -60,10 +61,10 @@ export function ApplicationsPage({ sub, go }: { sub: string; go: (p: string) => 
       {seg === 'backup' && <BackupPanel isDemo={isDemo} onDone={reload} />}
       {sel && action === 'edit' && <PostingForm initial={sel} all={postings} onCancel={() => go(`applications/${sel.id}`)} onSave={async (v) => { await updatePosting(db, { ...sel, ...v, priority: v.priority ?? sel.priority }); await reload(); go(`applications/${sel.id}`); }} />}
       {sel && !action && <PostingDetail key={sel.id} posting={sel} go={go} onChanged={reload} onEdit={() => go(`applications/${sel.id}/edit`)} onDelete={() => del(sel.id)} />}
-      {seg && !sel && !['new', 'record', 'import', 'backup'].includes(seg) && <div className="notice warn">岗位不存在（可能已删除）。<button className="link" onClick={() => go('applications')}>返回列表</button></div>}
+      {seg && !sel && !['new', 'record', 'import', 'backup'].includes(seg) && <div className="notice warn">{tx("岗位不存在（可能已删除）。")}<button className="link" onClick={() => go('applications')}>{tx("返回列表")}</button></div>}
       {!seg && (<>
         <div className="stats" data-testid="stats">
-          {([['岗位总数', 'Jobs', stats.postings, 'st-postings'], ['已收藏', 'Saved', stats.saved, 'st-saved'], ['待投递（未计入投递）', 'To apply (not counted)', stats.pending, 'st-pending'], ['已投递（累计）', 'Applied', stats.applied, 'st-applied'], ['等待回复', 'Waiting', stats.waiting, 'st-waiting'], ['笔试 / 面试', 'Test / interview', stats.testOrInterview, 'st-ti'], ['Offer', 'Offers', stats.offer, 'st-offer'], ['被拒', 'Rejected', stats.rejected, 'st-rejected']] as const).map(([z, e, n, id]) => <div key={id} className="stat" data-testid={id}><div className="n">{n}</div><div className="muted small">{L(z, e)}</div></div>)}
+          {([[tx("岗位总数"), 'Jobs', stats.postings, 'st-postings'], [tx("已收藏"), 'Saved', stats.saved, 'st-saved'], [tx("待投递（未计入投递）"), 'To apply (not counted)', stats.pending, 'st-pending'], [tx("已投递（累计）"), 'Applied', stats.applied, 'st-applied'], [tx("等待回复"), 'Waiting', stats.waiting, 'st-waiting'], [tx("笔试 / 面试"), 'Test / interview', stats.testOrInterview, 'st-ti'], ['Offer', 'Offers', stats.offer, 'st-offer'], [tx("被拒"), 'Rejected', stats.rejected, 'st-rejected']] as const).map(([z, e, n, id]) => <div key={id} className="stat" data-testid={id}><div className="n">{n}</div><div className="muted small">{L(z, e)}</div></div>)}
         </div>
         {stats.postings > 0 && <div className="grid2 top small">
           <div className="card"><b>{L('地区分布', 'By city')}</b> {Object.entries(stats.byCity).sort((a, b) => b[1] - a[1]).map(([k, n]) => <span key={k} className="chip">{k} {n}</span>)}{!Object.keys(stats.byCity).length && <span className="muted"> {L('（建立申请后统计）', '(none yet)')}</span>}

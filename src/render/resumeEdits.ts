@@ -1,6 +1,7 @@
 import type { ProfileDoc, ResumeDoc } from '../types';
+import { txDeep } from '../i18n/tx';
 
-export const ENTRY_TEXT_FIELDS = { school: '学校', degree: '学位', major: '专业', company: '公司', title: '职位', name: '名称', role: '角色', category: '分类', issuer: '颁发机构' } as const;
+export const ENTRY_TEXT_FIELDS = txDeep({ school: '学校', degree: '学位', major: '专业', company: '公司', title: '职位', name: '名称', role: '角色', category: '分类', issuer: '颁发机构' } as const);
 
 /** 渲染/导出使用临时副本，来源 ID、素材与历史记录不改变。 */
 export function profileWithResumeEdits(p: ProfileDoc, r?: ResumeDoc | null): ProfileDoc {

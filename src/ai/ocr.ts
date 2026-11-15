@@ -1,6 +1,7 @@
 import type { Settings } from '../types';
 import { ocrImage } from './jd';
 
+import { tx } from '../i18n/tx';
 /** 合并中文字符之间被 OCR 插入的空格 */
 export function cleanOcrText(t: string): string {
   return t.replace(/([\u4e00-\u9fff\u3000-\u303f\uff00-\uffef])[ \t]+(?=[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef])/g, '$1').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
@@ -23,8 +24,8 @@ export async function ocrLocal(image: string | Blob, onProgress?: (p: number, st
 /** 选择识别方式：配置了多模态模型且选择 vision 时用 AI，否则本地 OCR；AI 识别失败自动回退本地 */
 export async function recognizeScreenshot(s: Settings, dataUrl: string, onProgress?: (msg: string, pct?: number) => void): Promise<{ text: string; via: 'vision' | 'local' }> {
   if (!s.demoMode && s.ocrMode === 'vision' && s.visionModel && s.apiKey) {
-    try { onProgress?.('AI 识别截图中…'); return { text: await ocrImage(s, dataUrl), via: 'vision' }; }
-    catch { onProgress?.('AI 识别失败，改用本地识别…'); }
+    try { onProgress?.(tx("AI 识别截图中…")); return { text: await ocrImage(s, dataUrl), via: 'vision' }; }
+    catch { onProgress?.(tx("AI 识别失败，改用本地识别…")); }
   }
   const text = await ocrLocal(dataUrl, (p, st) => onProgress?.(ocrStage(st), p));
   return { text, via: 'local' };
@@ -32,8 +33,8 @@ export async function recognizeScreenshot(s: Settings, dataUrl: string, onProgre
 
 /** tesseract 状态 → 用户可读文案 */
 export function ocrStage(st: string): string {
-  if (/recogniz/.test(st)) return '正在识别文字';
-  if (/traineddata|language/.test(st)) return '加载识别模型（首次约 8 MB，之后有缓存）';
-  if (/core/.test(st)) return '加载识别引擎';
-  return '准备中';
+  if (/recogniz/.test(st)) return tx("正在识别文字");
+  if (/traineddata|language/.test(st)) return tx("加载识别模型（首次约 8 MB，之后有缓存）");
+  if (/core/.test(st)) return tx("加载识别引擎");
+  return tx("准备中");
 }

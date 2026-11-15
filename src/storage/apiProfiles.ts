@@ -1,6 +1,7 @@
 import type { ApiProfile, ApiProvider, Settings } from '../types';
 import { baseUrlProblem, isOfficialDeepSeek, PROVIDERS, isRetiredDeepSeekModel } from './defaults';
 
+import { tx } from '../i18n/tx';
 /**
  * 多 API 配置管理（纯函数，便于测试）。
  * 存储：apiProfiles / activeProfileId 写在原有 settings 表的同一条 'settings' 记录里 —— 不升级 Dexie、不改业务表。
@@ -29,13 +30,13 @@ export function newProfileId(): string {
 /** 脱敏显示：sk-••••••1234；过短的 Key 完全隐藏 */
 export function maskKey(k: string): string {
   const v = (k ?? '').trim();
-  if (!v) return '（未填写）';
+  if (!v) return tx("（未填写）");
   if (v.length < 10) return '••••••';
   const prefix = /^sk-/i.test(v) ? v.slice(0, 3) : '';
   return `${prefix}••••••${v.slice(-4)}`;
 }
 
-export const providerLabel = (p: ApiProvider) => ({ deepseek: 'DeepSeek', qwen: '通义千问', openai: 'OpenAI', custom: '自定义' })[p] ?? p;
+export const providerLabel = (p: ApiProvider) => ({ deepseek: 'DeepSeek', qwen: tx("通义千问"), openai: 'OpenAI', custom: tx("自定义") })[p] ?? p;
 
 /** 预设：选服务商后自动填写推荐 Base URL 与模型 */
 export function presetFor(p: ApiProvider): Pick<ApiProfile, 'provider' | 'baseUrl' | 'model' | 'visionModel' | 'translateModel'> {
@@ -73,7 +74,7 @@ export function migrateToProfiles(s: Settings, now = new Date().toISOString()): 
   if (!hasOld) return { settings: applyActive({ ...s, apiProfiles: [], activeProfileId: null }), migrated: true };
   const prov: ApiProvider = (['deepseek', 'qwen', 'openai', 'custom'] as const).includes(s.provider) ? s.provider : 'custom';
   const p: ApiProfile = fixRetiredModel({
-    id: newProfileId(), name: `${providerLabel(prov)}（原配置）`, provider: prov,
+    id: newProfileId(), name: tx("{0}（原配置）", providerLabel(prov)), provider: prov,
     baseUrl: s.baseUrl ?? '', apiKey: s.apiKey, model: s.model ?? '', translateModel: s.translateModel ?? '', visionModel: s.visionModel ?? '',
     createdAt: now, updatedAt: now,
   });
@@ -85,15 +86,15 @@ export interface ProfileDraft { id?: string; name: string; provider: ApiProvider
 /** 校验；返回错误文案数组（空 = 通过）。isNew 时 Key 必填；编辑时 Key 留空表示保留原 Key */
 export function validateDraft(d: ProfileDraft, isNew: boolean): string[] {
   const e: string[] = [];
-  if (!d.name.trim()) e.push('请填写配置名称');
-  if (isNew && !d.apiKey.trim()) e.push('请粘贴 API Key');
-  if (!d.model.trim()) e.push('请填写模型名称');
+  if (!d.name.trim()) e.push(tx("请填写配置名称"));
+  if (isNew && !d.apiKey.trim()) e.push(tx("请粘贴 API Key"));
+  if (!d.model.trim()) e.push(tx("请填写模型名称"));
   const bad = baseUrlProblem(d.baseUrl);
   let u: URL | null = null;
   try { u = new URL(d.baseUrl.trim()); } catch { /* */ }
-  if (bad || !u) e.push(bad ?? 'Base URL 格式不正确，应以 https:// 开头');
-  else if (u.search || u.username || u.password) e.push('Base URL 不能带参数或账号信息（API Key 请填在 Key 输入框，不要放进网址）');
-  if (/\s/.test(d.apiKey.trim())) e.push('API Key 中不能有空格或换行');
+  if (bad || !u) e.push(bad ?? tx("Base URL 格式不正确，应以 https:// 开头"));
+  else if (u.search || u.username || u.password) e.push(tx("Base URL 不能带参数或账号信息（API Key 请填在 Key 输入框，不要放进网址）"));
+  if (/\s/.test(d.apiKey.trim())) e.push(tx("API Key 中不能有空格或换行"));
   return e;
 }
 

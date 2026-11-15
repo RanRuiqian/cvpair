@@ -14,7 +14,7 @@
 4. **不得伪造事实**：不自动投递、不自动发邮件、不把未知状态猜成「已投递」、不编造投递时间或个人经历。
 5. 申请里的简历快照（`artifacts`）创建后内容不可修改。
 6. 正常模式（库 `resume-tool`）与 `?demo` 演示模式（库 `resume-tool-demo`）严格隔离。
-7. 界面文案默认中文；英文通过 `src/i18n` 与页面内 `L(zh, en)`。
+7. 界面文案默认中文，写成 `tx('中文')`（`src/i18n/tx.ts`；带参数用 `tx('已保存 {0} 个', n)`；模块顶层的标签表用 `txDeep({...})` 包起来）。英文在 `src/i18n/en.ts`，新增文字后运行 `node scripts/i18n/extract.mjs` 补齐缺失英文；`tests/i18nCoverage.test.ts` 会检查。发给 AI 的提示词、匹配规则、简历内容不要包 `tx`。旧写法 `L(zh, en)` 仍可用。
 8. 不要改动 DeepSeek / AI 调用方式（`src/ai`）。所有 AI 调用都读 `settings` 的平铺字段（= 当前启用配置），**不要**在业务代码里直接读 `apiProfiles`；增删改切换只走 `src/storage/apiProfiles.ts` 与 store 的 `saveApiProfile / switchApiProfile / removeApiProfile`。
 9. 不要强推（force push），不要直接合并到 `main`；`main` 推送即自动部署。
 
@@ -34,7 +34,9 @@ python3 tests/e2e/tracker_e2e.py   # 投递管理主流程（33 项）
 python3 tests/e2e/release_e2e.py   # 发布验收：导航工具导入、完整备份恢复、空库、移动端/桌面端（35 项）
 python3 tests/e2e/organize_e2e.py  # v1.9 AI 整理现有资料 + 首次导入质量（36 项，AI 全部模拟）
 python3 tests/e2e/info_loss_e2e.py # v1.9.1–1.9.3 AI 信息丢失 + 英文译文交叉核对 + 整理可用性（案例 A–D、五类数量）回归（20 项，AI 全部模拟）
-python3 tests/e2e/api_profiles_e2e.py  # 多 API 配置管理（46 项，全部虚构 Key，AI 接口被拦截模拟）
+python3 tests/e2e/api_profiles_e2e.py  # 多 API 配置管理（48 项，全部虚构 Key，AI 接口被拦截模拟）
+python3 tests/e2e/quick_record_e2e.py  # 记录投递：截图识别 → 自动填表 → 存 PDF（33 项）
+python3 tests/e2e/i18n_en_e2e.py       # 英文界面：空库逐页检查无中文界面文字（15 项）
 ```
 可选环境变量：`E2E_BASE`（默认 http://localhost:4173/），`SHOT_DIR`（截图目录）。
 

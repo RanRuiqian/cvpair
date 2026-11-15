@@ -1,6 +1,7 @@
 import type { Settings } from '../types';
 import { baseUrlProblem, isOfficialDeepSeek } from '../storage/defaults';
 
+import { tx } from '../i18n/tx';
 export type AiErrorKind = 'nokey' | 'auth' | 'balance' | 'rate' | 'model' | 'timeout' | 'network' | 'server' | 'format' | 'json' | 'other';
 export class AiError extends Error {
   kind: AiErrorKind; status?: number;
@@ -19,9 +20,9 @@ export interface AiObservation { onAttempt?: (model: string) => void; onUsage?: 
 
 /** OpenAI 兼容 Chat Completions；请求直连用户配置的服务商（PRD 8） */
 export async function chat(s: Settings, messages: ChatMsg[], opts: AiObservation & { model?: string; json?: boolean; timeoutMs?: number; maxTokens?: number; thinking?: 'enabled' | 'disabled' } = {}): Promise<string> {
-  if (!s.apiKey) throw new AiError('尚未启用 API：请到「设置 → AI API 管理」添加或启用一套 API，或开启演示模式', 'nokey');
+  if (!s.apiKey) throw new AiError(tx("尚未启用 API：请到「设置 → AI API 管理」添加或启用一套 API，或开启演示模式"), 'nokey');
   const bad = baseUrlProblem(s.baseUrl);
-  if (bad) throw new AiError(`已阻止发送请求：${bad}。请到「设置 → AI API 管理」编辑这套配置的 Base URL`, 'other');
+  if (bad) throw new AiError(tx("已阻止发送请求：{0}。请到「设置 → AI API 管理」编辑这套配置的 Base URL", bad), 'other');
   const url = s.baseUrl.replace(/\/+$/, '') + '/chat/completions';
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 120_000);
@@ -40,7 +41,7 @@ export async function chat(s: Settings, messages: ChatMsg[], opts: AiObservation
     } catch (e) {
       if ((e as Error).name === 'AbortError') throw e;
       // 网络中断 / DNS / CORS / 服务不可达：不是 Key 的问题
-      throw new AiError('无法连接到 AI 服务（网络中断、地址不可达或服务暂时不可用），请稍后重试', 'network');
+      throw new AiError(tx("无法连接到 AI 服务（网络中断、地址不可达或服务暂时不可用），请稍后重试"), 'network');
     }
     if (!res.ok) {
       const txt = (await res.text().catch(() => '')).replaceAll(s.apiKey, '***');
@@ -53,12 +54,12 @@ export async function chat(s: Settings, messages: ChatMsg[], opts: AiObservation
     try { opts.onUsage?.(usage); } catch { /* 同全局统计：不影响主流程 */ }
     usageListeners.forEach((fn) => { try { fn(usage); } catch { /* 统计回调出错不影响主流程 */ } });
     // 输出被 max_tokens 截断时，JSON 往往不完整；明确提示而不是报「格式异常」
-    if (fin === 'length') throw new AiError('AI 输出过长被截断（finish_reason=length），请减少一次处理的内容或稍后重试', 'format');
+    if (fin === 'length') throw new AiError(tx("AI 输出过长被截断（finish_reason=length），请减少一次处理的内容或稍后重试"), 'format');
     const out = data?.choices?.[0]?.message?.content;
-    if (typeof out !== 'string') throw new AiError('AI 返回格式异常', 'format');
+    if (typeof out !== 'string') throw new AiError(tx("AI 返回格式异常"), 'format');
     return out;
   } catch (e) {
-    if ((e as Error).name === 'AbortError') throw new AiError('AI 请求超时：服务响应太慢或网络不稳定，请稍后重试', 'timeout');
+    if ((e as Error).name === 'AbortError') throw new AiError(tx("AI 请求超时：服务响应太慢或网络不稳定，请稍后重试"), 'timeout');
     throw e;
   } finally { clearTimeout(timer); }
 }
@@ -66,19 +67,19 @@ export async function chat(s: Settings, messages: ChatMsg[], opts: AiObservation
 /** HTTP 错误 → 友好提示（保留状态码数字，chatJson 的 400 降级依赖它） */
 export function httpError(status: number, txt: string): AiError {
   const t = txt.slice(0, 300);
-  if (status === 401 || status === 403) return new AiError(`API Key 无效或没有权限（${status}），请检查 Key 是否复制完整`, 'auth', status);
-  if (status === 402) return new AiError('账户余额不足（402），请到服务商后台充值', 'balance', status);
-  if (status === 429) return new AiError('请求过于频繁或额度用尽（429），请稍后重试', 'rate', status);
-  if (status === 404 || /model/i.test(t) && (status === 400 || status === 422)) return new AiError(`模型名称或接口地址可能不正确（${status}）：${t}`, 'model', status);
-  if (status >= 500) return new AiError(`AI 服务暂时不可用（${status}），请稍后重试`, 'server', status);
-  return new AiError(`AI 服务返回错误 ${status}: ${t}`, 'other', status);
+  if (status === 401 || status === 403) return new AiError(tx("API Key 无效或没有权限（{0}），请检查 Key 是否复制完整", status), 'auth', status);
+  if (status === 402) return new AiError(tx("账户余额不足（402），请到服务商后台充值"), 'balance', status);
+  if (status === 429) return new AiError(tx("请求过于频繁或额度用尽（429），请稍后重试"), 'rate', status);
+  if (status === 404 || /model/i.test(t) && (status === 400 || status === 422)) return new AiError(tx("模型名称或接口地址可能不正确（{0}）：{1}", status, t), 'model', status);
+  if (status >= 500) return new AiError(tx("AI 服务暂时不可用（{0}），请稍后重试", status), 'server', status);
+  return new AiError(tx("AI 服务返回错误 {0}: {1}", status, t), 'other', status);
 }
 
 /** 连接测试：用给定配置发一次最小真实请求，不改变当前启用配置 */
 export async function testConnection(s: Settings): Promise<{ ok: true; ms: number } | { ok: false; kind: AiErrorKind; message: string }> {
   const t0 = Date.now();
   try {
-    await chat(s, [{ role: 'user', content: '只回复 OK' }], { timeoutMs: 20000, maxTokens: 8 });
+    await chat(s, [{ role: 'user', content: tx("只回复 OK") }], { timeoutMs: 20000, maxTokens: 8 });
     return { ok: true, ms: Date.now() - t0 };
   } catch (e) {
     const a = e instanceof AiError ? e : new AiError((e as Error).message);
@@ -96,7 +97,7 @@ export function parseJson<T>(s: string): T {
     // v1.11：模型偶尔在 JSON 后追加说明文字——只截取到最后一个闭合括号再试，不做任何内容修补
     const end = Math.max(body.lastIndexOf('}'), body.lastIndexOf(']'));
     if (end > 0 && end < body.length - 1) { try { return JSON.parse(body.slice(0, end + 1)) as T; } catch { /* 落到下方 */ } }
-    throw new AiError('AI 输出不是合法 JSON', 'json');
+    throw new AiError(tx("AI 输出不是合法 JSON"), 'json');
   }
 }
 

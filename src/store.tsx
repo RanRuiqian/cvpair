@@ -1,4 +1,5 @@
 import { liveQuery } from 'dexie';
+import { loadEn, onTxReady, setTxLang } from './i18n/tx';
 import { Fragment, createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { assertProfileEpoch, clearPersonalData as clearStoredPersonalData, epochValue, persistProfile, PROFILE_EPOCH_KEY, profileEpoch as readProfileEpoch, StaleProfileWriteError } from './storage/clearProfile';
 import { sanitizeResume, sanitizeJob } from './utils/sanitizeResume';
@@ -80,6 +81,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setProfileS(d.profile); setJobS(d.job); setResumeS(d.resume); settingsRef.current = ds; setSettingsS(ds);
         if (!epochRef.current) uiStorage.setItem('wizardStep', '3');
       }
+      // 英文界面：先加载翻译表再显示，避免首屏闪中文、以及缓存的计算结果停留在中文
+      if (settingsRef.current.uiLang === 'en') { setTxLang('en'); await loadEn().catch(() => undefined); }
       setReady(true);
     })().catch(() => { setLoadError(true); });
   }, []);
@@ -169,5 +172,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const templates = [...ALL_TEMPLATES, ...custom];
   const template = templates.find((t) => t.id === templateId) ?? BUILTIN_TEMPLATES[0];
 
+  // 界面语言同步给 tx()；英文翻译表异步加载完成后整树重新渲染一次
+  setTxLang(settings.uiLang);
+  const [, bumpTx] = useState(0);
+  useEffect(() => onTxReady(() => bumpTx((n) => n + 1)), []);
   return <Ctx.Provider value={{ ready, loadError, profileEpoch, clearingProfile, clearPersonalData, profile, setProfile, settings, setSettings, saveApiProfile, switchApiProfile, removeApiProfile, templates, saveTemplate, deleteTemplate, templateId, setTemplateId, job, setJob, resume, setResume, template, canUndo: history.length > 0, undo, replaceProfile, listBackups, restoreBackup, isDemo: IS_DEMO }}><Fragment key={profileEpoch}>{children}</Fragment></Ctx.Provider>;
 }

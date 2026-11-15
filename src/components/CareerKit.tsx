@@ -6,13 +6,14 @@ import { enWords, generateCoverKit, generatePrep, zhLen, type KitQuality } from 
 import { kitExportState, type SentenceTrace } from '../quality/kitVerify';
 import type { Bi, Lang, ResumeDoc } from '../types';
 
-const KIND: Record<SentenceTrace['kind'], string> = { closing: '称呼 / 结尾', self: '自述', reflection: '概括前文', motivation: '动机', jd: '岗位 / 公司描述（对照 JD）', learning: '学习意愿', future: '未来计划 / 兴趣', other: '其他陈述' };
+import { tx, txDeep } from '../i18n/tx';
+const KIND: Record<SentenceTrace['kind'], string> = txDeep({ closing: "称呼 / 结尾", self: "自述", reflection: "概括前文", motivation: "动机", jd: "岗位 / 公司描述（对照 JD）", learning: "学习意愿", future: "未来计划 / 兴趣", other: "其他陈述" });
 function TraceTable({ trace, lang }: { trace: SentenceTrace[]; lang: Lang }) {
   const rows = trace.filter((t) => t.lang === lang);
   return (
     <table className="kit-trace small" data-testid="kit-trace">
       <tbody>
-        {rows.map((t, i) => <tr key={i} className={t.ok ? '' : 'bad'}><td>{t.ok ? '✓' : '✗'}</td><td>{t.field === 'coverLetter' ? '求职信' : '自我介绍'} · {KIND[t.kind]}</td><td>{t.text}</td><td>{t.ok ? (t.factIds.length ? `依据：${t.factIds.join('、')}` : '') : t.reasons.join('；')}</td></tr>)}
+        {rows.map((t, i) => <tr key={i} className={t.ok ? '' : 'bad'}><td>{t.ok ? '✓' : '✗'}</td><td>{t.field === 'coverLetter' ? tx("求职信") : tx("自我介绍")} · {KIND[t.kind]}</td><td>{t.text}</td><td>{t.ok ? (t.factIds.length ? tx("依据：{0}", t.factIds.join('、')) : '') : t.reasons.join('；')}</td></tr>)}
       </tbody>
     </table>
   );
@@ -63,7 +64,7 @@ export function CareerKit() {
     <div className="card career-kit">
       <div className="row">
         <h3 className="grow">{L('📨 求职信 · 自我介绍 · 备考方向', '📨 Cover letter · Self-intro · What to prepare')}</h3>
-        {(['zh', 'en'] as Lang[]).map((l) => <button key={l} className={lang === l ? 'active' : ''} onClick={() => setLang(l)}>{l === 'zh' ? '中文' : 'English'}</button>)}
+        {(['zh', 'en'] as Lang[]).map((l) => <button key={l} className={lang === l ? 'active' : ''} onClick={() => setLang(l)}>{l === 'zh' ? tx("中文") : 'English'}</button>)}
       </div>
       <p className="muted small">{L('「我做过 / 会 / 有」只取自你的资料；岗位要求只用于动机和学习方向。AI 生成时检查事实，生成后可自由编辑并导出。', 'Self-claims come only from your profile; the job post is used only for motivation and learning goals. Each sentence is checked against your profile before saving. This is a rule-based check, not a guarantee — read it yourself before sending.')}</p>
       <div className="row">
@@ -77,7 +78,7 @@ export function CareerKit() {
       {pending && (
         <div className="notice error" data-testid="kit-blocked">
           <b>{L('事实检查未通过，需人工核对', 'Fact check failed — needs manual review')}</b>
-          <div className="small">{L(`AI 生成了 ${pending.quality.attempts} 次，仍有以下句子无法对应到你的资料。新内容没有保存${ex.coverLetter || ex.selfIntro ? '，原来的求职信 / 自我介绍保持不变' : ''}。`, `Generated ${pending.quality.attempts} time(s); these sentences still cannot be traced to your profile. Nothing was saved.`)}</div>
+          <div className="small">{L(`AI 生成了 ${pending.quality.attempts} 次，仍有以下句子无法对应到你的资料。新内容没有保存${ex.coverLetter || ex.selfIntro ? tx("，原来的求职信 / 自我介绍保持不变") : ''}。`, `Generated ${pending.quality.attempts} time(s); these sentences still cannot be traced to your profile. Nothing was saved.`)}</div>
           <ul className="small" data-testid="kit-blocked-reasons">{pending.quality.issues.map((x, i) => <li key={i}>{x}</li>)}</ul>
           <details><summary className="small">{L('查看这次的草稿与逐句核对', 'View this draft and the per-sentence check')}</summary><TraceTable trace={pending.quality.trace} lang={lang} /></details>
           <div className="row">
@@ -98,7 +99,7 @@ export function CareerKit() {
       )}
       {area(L('求职信', 'Cover letter'), ex.coverLetter, (t) => save((e) => { e.coverLetter![lang] = t; }), 10)}
       {area(L('1 分钟自我介绍', '1-minute self-introduction'), ex.selfIntro, (t) => save((e) => { e.selfIntro![lang] = t; }), 6)}
-      {ex.selfIntro?.[lang] && <div className="muted small" data-testid="intro-len">{lang === 'zh' ? `自我介绍 ${zhLen(ex.selfIntro.zh)} 字（建议 180–220 字，约 1 分钟）` : `Intro: ${enWords(ex.selfIntro.en)} words (aim for 100–130, about 1 minute)`}</div>}
+      {ex.selfIntro?.[lang] && <div className="muted small" data-testid="intro-len">{lang === 'zh' ? tx("自我介绍 {0} 字（建议 180–220 字，约 1 分钟）", zhLen(ex.selfIntro.zh)) : `Intro: ${enWords(ex.selfIntro.en)} words (aim for 100–130, about 1 minute)`}</div>}
       {state.hasText && !state.verdict.passed && quality?.status !== 'review' && <p className="muted small" data-testid="kit-status">{L('当前文字可能有与资料不同的表述，请留意关键事实；可继续编辑和下载。', 'Some wording may differ from your profile. You can continue editing and downloading.')}</p>}
       {quality && quality.warnings.length > 0 && <div className="notice warn small" data-testid="kit-quality">{L('格式提示：', 'Style: ')}{quality.warnings.map((x, i) => <div key={i}>· {x}</div>)}</div>}
       {prepOn && ex.prep && ex.prep.length > 0 && (

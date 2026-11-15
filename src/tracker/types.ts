@@ -1,20 +1,23 @@
 import type { JobParse, Lang, ProfileDoc, ResumeDoc } from '../types';
+import { txDeep } from '../i18n/tx';
 
 /** 第三阶段：求职投递管理的数据模型（详见 docs/DATA_SCHEMA.md） */
 export const TRACKER_SCHEMA_VERSION = 1;
 
 export type RecruitType = 'campus' | 'intern' | 'social';
-export const RECRUIT_LABEL: Record<RecruitType, string> = { campus: '校招', intern: '实习', social: '社招' };
+export const RECRUIT_LABEL: Record<RecruitType, string> = txDeep({ campus: '校招', intern: '实习', social: '社招' });
 export type Priority = 1 | 2 | 3;
-export const PRIORITY_LABEL: Record<Priority, string> = { 1: '高', 2: '中', 3: '低' };
+export const PRIORITY_LABEL: Record<Priority, string> = txDeep({ 1: '高', 2: '中', 3: '低' });
 
 /** 投递状态（顺序即 UI 顺序） */
 export const APP_STATUSES = ['screening', 'saved', 'pending', 'preparing', 'applied', 'assessment', 'interviewing', 'offer', 'rejected', 'withdrawn', 'closed'] as const;
 export type AppStatus = (typeof APP_STATUSES)[number];
-export const STATUS_LABEL: Record<AppStatus, string> = {
+/** 原始中文状态名（导入表格时按中文匹配；界面显示用 STATUS_LABEL） */
+export const STATUS_LABEL_ZH: Record<AppStatus, string> = {
   screening: '待筛选', saved: '已收藏', pending: '待投递', preparing: '准备材料', applied: '已投递', assessment: '在线测评 / 笔试',
   interviewing: '面试中', offer: 'Offer', rejected: '已拒绝 / 未通过', withdrawn: '已撤回', closed: '已结束',
 };
+export const STATUS_LABEL: Record<AppStatus, string> = txDeep(STATUS_LABEL_ZH);
 export const STATUS_LABEL_EN: Record<AppStatus, string> = {
   screening: 'To screen', saved: 'Saved', pending: 'To apply', preparing: 'Preparing', applied: 'Applied', assessment: 'Assessment / test',
   interviewing: 'Interviewing', offer: 'Offer', rejected: 'Rejected', withdrawn: 'Withdrawn', closed: 'Closed',
@@ -86,10 +89,10 @@ export interface ResumeArtifact {
 }
 
 export type AttachmentKind = 'resume-submitted' | 'jd-screenshot' | 'apply-proof' | 'assessment' | 'interview' | 'offer' | 'other';
-export const ATTACH_KIND_LABEL: Record<AttachmentKind, string> = {
+export const ATTACH_KIND_LABEL: Record<AttachmentKind, string> = txDeep({
   'resume-submitted': '实际提交的简历', 'jd-screenshot': 'JD 截图', 'apply-proof': '投递成功截图', assessment: '笔试 / 测评通知',
   interview: '面试通知', offer: '录用通知', other: '其他材料',
-};
+});
 /** 附件元数据（二进制在 attachmentBlobs 表中，按 id 对应） */
 export interface Attachment {
   id: string; postingId?: string; applicationId?: string;
