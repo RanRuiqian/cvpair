@@ -121,7 +121,15 @@ function Hero() {
   return (
     <div className="hero-text">
       <h1>{L('上传岗位截图，一键生成中英文简历', 'Screenshot a job post, get a tailored resume in Chinese & English')}</h1>
-      <p>{L('填一次个人资料 → 每投一个岗位，上传它的招聘截图 → 自动挑选最相关的经历、改写贴合岗位 → 下载中文 / 英文的 PDF 和 Word。', 'Fill in your profile once → for each job, upload the posting screenshot → the most relevant experience is picked and rephrased → download CN/EN PDF and Word.')}</p>
+      <p>{L('填一次个人资料 → 每投一个岗位，上传它的招聘截图 → 自动挑选最相关的经历、改写贴合岗位 → 下载中文 / 英文的 PDF 和 Word。', 'Fill in your profile once → for each job, upload the posting screenshot → the most relevant experience is picked and rewritten to fit → download Chinese / English PDF and Word.')}</p>
+      <div className="hero-points" data-testid="hero-points">
+        <div><b>{tx("🔒 数据只在你的浏览器")}</b><span>{tx("没有账号、没有服务器；资料、简历、投递记录都存在本机，只有你选的 AI 服务商会收到生成所需的内容。")}</span></div>
+        <div><b>{tx("🔁 一份资料，中英两版")}</b><span>{tx("中英文由同一份资料生成，并自动核对两版的数字、日期是否一致。")}</span></div>
+        <div><b>{tx("📋 投完也能管")}</b><span>{tx("拖入投递成功截图自动建记录，并保存当时投出去的那份简历。")}</span></div>
+      </div>
+      <div className="row center hero-actions">
+        <a className="button" data-testid="hero-demo" href={`${window.location.pathname}?demo#wizard`}>{tx("👀 先看演示（示例资料，不需要 API Key）")}</a>
+      </div>
     </div>
   );
 }

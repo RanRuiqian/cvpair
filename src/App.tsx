@@ -46,6 +46,10 @@ function Shell() {
         {page === 'layout' && <LayoutPage />}
         {page === 'settings' && <SettingsPage />}
       </main>
+      <footer className="app-footer muted small" data-testid="app-footer">
+        <span>CVPair · {tx("开源免费")} · <a href="https://github.com/RanRuiqian/cvpair" target="_blank" rel="noreferrer">GitHub</a></span>
+        <span>{tx("资料只保存在你的浏览器里；换设备请用「设置 → 备份与恢复」。")}</span>
+      </footer>
     </div>
   );
 }

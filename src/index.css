@@ -415,3 +415,13 @@ button, a, summary { -webkit-tap-highlight-color: rgba(49, 130, 206, .15); touch
 @media (max-width: 1000px) { .pool-layout:has(> .fmt-panel) { grid-template-columns: 1fr; } }
 @media (max-width: 640px), (pointer: coarse) { .pool-layout[data-m='pool'] > .fmt-panel { display: none; } .fmt-row button { min-width: 44px; min-height: 40px; } }
 .fmt-sync { display: flex; flex-direction: row; align-items: center; gap: 6px; margin: 0; font-weight: 600; } .fmt-sync input { width: auto; }
+/* 2026-11 开源首屏 */
+.hero-points { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; max-width: 760px; margin: 18px auto 6px; text-align: left; }
+.hero-points > div { background: #fff; border: 1px solid var(--line, #e3e8ef); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+.hero-points b { color: var(--c); font-size: 14px; } .hero-points span { color: var(--muted); font-size: 13px; line-height: 1.45; }
+.hero-actions { justify-content: center; margin-top: 10px; }
+a.button { display: inline-block; padding: 8px 16px; border: 1px solid var(--c); border-radius: 8px; color: var(--c); background: #fff; text-decoration: none; font-weight: 600; }
+a.button:hover { background: #f1f5fb; }
+.key-guide { margin: 4px 0 8px; } .key-guide summary { cursor: pointer; color: var(--c); } .key-guide ol { margin: 6px 0; padding-left: 20px; } .key-guide li { margin: 3px 0; }
+.app-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; max-width: 1200px; margin: 30px auto 16px; padding: 0 16px; }
+@media (max-width: 720px) { .hero-points { grid-template-columns: 1fr; } }

@@ -44,7 +44,8 @@ export function ApiForm({ editing, onDone, onCancel, firstUse }: { editing?: Api
         {PROVS.map((p) => <button key={p} type="button" data-testid={`prov-${p}`} className={`provider ${d.provider === p ? 'active' : ''}`} onClick={() => pick(p)}>{providerLabel(p)}</button>)}
       </div>
       <label>{tx("配置名称")}<input data-testid="f-name" value={d.name} maxLength={40} placeholder={tx("例如：DeepSeek 主力")} onChange={(e) => { setNameTouched(true); setD({ ...d, name: e.target.value }); }} /></label>
-      <label>API Key {keyUrl && <a href={keyUrl} target="_blank" rel="noreferrer">{tx("（还没有？去申请）")}</a>}
+      <KeyGuide provider={d.provider} keyUrl={keyUrl} />
+      <label>API Key
         <input data-testid="f-key" type="password" autoComplete="new-password" spellCheck={false} placeholder={isNew ? 'sk-...' : tx("留空则保留原 Key（{0}）", maskKey(editing.apiKey))} value={d.apiKey} onChange={up('apiKey')} />
       </label>
       {d.provider === 'custom' && <div className="grid2">
@@ -130,5 +131,35 @@ export function ApiManager() {
         </div>
       )}
     </section>
+  );
+}
+
+/** 新手最常卡住的一步：去哪申请 Key、要不要花钱。只写稳定的步骤，价格以服务商官网为准 */
+function KeyGuide({ provider, keyUrl }: { provider: string; keyUrl: string }) {
+  const steps: Record<string, string[]> = {
+    deepseek: [
+      tx("打开 DeepSeek 开放平台（platform.deepseek.com），用手机号或邮箱注册登录。"),
+      tx("在「充值」页面充一点钱（按用量计费，几元就能用很久；价格以官网为准）。"),
+      tx("打开「API Keys」，点「创建 API Key」，复制以 sk- 开头的 Key（只显示一次）。"),
+      tx("回到这里粘贴，点「确定并启用」。"),
+    ],
+    qwen: [
+      tx("用阿里云账号登录「阿里云百炼」控制台（需要实名认证）。新用户通常有一段时间的免费额度。"),
+      tx("在左侧或右上角找到「API-Key」，点「创建」，复制 Key。"),
+      tx("回到这里粘贴，点「确定并启用」。通义千问的看图模型（qwen-vl-plus）还能识别投递截图。"),
+    ],
+    openai: [
+      tx("登录 OpenAI 开放平台，进入 API keys 页面创建 Key（需要绑定付款方式）。"),
+      tx("部分地区无法直接访问 OpenAI 接口，国内用户建议优先用 DeepSeek 或通义千问。"),
+    ],
+    custom: [tx("任何兼容 OpenAI 接口格式的服务都可以：填写它的 Base URL、模型名称和 Key。")],
+  };
+  return (
+    <details className="key-guide small" data-testid="key-guide">
+      <summary>{tx("怎么申请 API Key？要花多少钱？")}</summary>
+      <ol>{(steps[provider] ?? steps.custom).map((x, i) => <li key={i}>{x}</li>)}</ol>
+      <p className="muted">{tx("费用按实际用量从你自己的账户扣，本工具不收费、也不经手。生成一份简历通常只要几毛钱（以服务商价格为准）。不想花钱可以先用演示模式。")}</p>
+      {keyUrl && <a href={keyUrl} target="_blank" rel="noreferrer">{tx("打开申请页面 ↗")}</a>}
+    </details>
   );
 }

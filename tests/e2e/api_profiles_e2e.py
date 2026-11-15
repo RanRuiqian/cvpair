@@ -95,7 +95,7 @@ with sync_playwright() as p:
     # ---- 6 编辑不填 Key 保留 / 7 修改当前配置立即生效 ----
     item(pg,'Qwen 备用').locator('[data-testid=api-edit]').click(); f=pg.locator('[data-testid=api-form]')
     chk('编辑面板：Key 框为空、提示留空保留（只显示脱敏 Key）', f.locator('[data-testid=f-key]').input_value()=='' and 'sk-••••••0003' in (f.locator('[data-testid=f-key]').get_attribute('placeholder') or ''))
-    f.locator('[data-testid=f-name]').fill('Qwen 备用（Max）'); f.locator('summary').click(); f.locator('[data-testid=f-model]').fill('qwen-max')
+    f.locator('[data-testid=f-name]').fill('Qwen 备用（Max）'); f.locator('summary', has_text='高级参数').click(); f.locator('[data-testid=f-model]').fill('qwen-max')
     f.screenshot(path=S+'p7_edit.png'); f.locator('[data-testid=f-save]').click(); pg.wait_for_timeout(250)
     m=cur(pg); q=[x for x in m['apiProfiles'] if x['id']==P['Qwen 备用']['id']][0]
     chk('6 编辑未填 Key：原 Key 保留，其他配置未变', q['apiKey']==K['qw'] and q['name']=='Qwen 备用（Max）' and all(x==P[x['name']] for x in m['apiProfiles'] if x['id']!=q['id']))
