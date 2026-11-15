@@ -1,7 +1,7 @@
 # v1.9.1 信息丢失回归（浏览器端，全部模拟：资料虚构、Key 虚构、AI 接口被 Playwright 拦截）
 import json, os, tempfile
 from playwright.sync_api import sync_playwright
-B=os.environ.get('E2E_BASE','http://localhost:4173/'); S=os.environ.get('SHOT_DIR','/workspace/resume-tool/screenshots/'); os.makedirs(S, exist_ok=True)
+B=os.environ.get('E2E_BASE','http://localhost:4173/'); S=os.environ.get('SHOT_DIR','/tmp/cvpair-e2e/screenshots/'); os.makedirs(S, exist_ok=True)
 KEY='sk-FAKE-infoloss-0001'; ok=[]; reqs=[]
 def chk(n,c): ok.append(bool(c)); print(('PASS ' if c else 'FAIL ')+n, flush=True)
 BAD={'在公司使用设备测试':'使用设备测试','在医院与导师讨论耳镜设计':'讨论耳镜设计','协助维护实验台':'负责维护实验台','仅在室温条件下验证样机':'验证样机','样机尚未完成测试':'样机已完成测试','参与三人团队开发控制软件':'独立开发控制软件'}

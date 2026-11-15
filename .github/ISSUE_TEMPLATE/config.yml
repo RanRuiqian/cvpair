@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 在线使用 / Use it online
+    url: https://ranruiqian.github.io/cvpair/
+    about: 直接在浏览器里使用 CVPair / Open CVPair in your browser

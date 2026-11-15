@@ -2,7 +2,7 @@
 import json, os, sys, tempfile
 from playwright.sync_api import sync_playwright
 B=os.environ.get('P11_BASE','http://localhost:4173/')  # 只测本地 preview，不读 E2E_BASE，避免误打线上
-S=os.environ.get('P11_SHOT_DIR','/workspace/resume-tool/screenshots/'); A=os.environ.get('P11_OUT','/workspace/resume-tool/artifacts/p12/')
+S=os.environ.get('P11_SHOT_DIR','/tmp/cvpair-e2e/screenshots/'); A=os.environ.get('P11_OUT','/tmp/cvpair-e2e/artifacts/p12/')
 os.makedirs(S,exist_ok=True)
 PH=open(os.path.join(A,'e2e_profile_photo.json')).read(); NP=open(os.path.join(A,'e2e_profile_nophoto.json')).read()
 ok=[]

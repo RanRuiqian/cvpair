@@ -1,7 +1,7 @@
 # v1.10 岗位分析稳定性 + 截图删除 + 标签不重叠（浏览器端，全部模拟：资料虚构、Key 虚构、AI 接口被 Playwright 拦截）
 import json, os, tempfile, shutil
 from playwright.sync_api import sync_playwright
-B=os.environ.get('E2E_BASE','http://localhost:4173/'); S=os.environ.get('SHOT_DIR','/workspace/resume-tool/screenshots/'); os.makedirs(S, exist_ok=True)
+B=os.environ.get('E2E_BASE','http://localhost:4173/'); S=os.environ.get('SHOT_DIR','/tmp/cvpair-e2e/screenshots/'); os.makedirs(S, exist_ok=True)
 FX=os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','fixtures','files')
 KEY='sk-FAKE-v110-step2-0001'; ok=[]; calls={'ocr':0,'parse':0}
 def chk(n,c): ok.append(bool(c)); print(('PASS ' if c else 'FAIL ')+n, flush=True)

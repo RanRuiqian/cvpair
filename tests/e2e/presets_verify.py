@@ -3,7 +3,7 @@ python-docx 解析、LibreOffice headless DOCX→PDF→PNG。用法：python3 te
 import json, subprocess, sys, os, glob, shutil
 from docx import Document
 
-D = sys.argv[1] if len(sys.argv) > 1 else '/workspace/resume-tool/artifacts/p12'
+D = sys.argv[1] if len(sys.argv) > 1 else '/tmp/cvpair-e2e/artifacts/p12'
 EXPECT = {
     'CN': ['张测试', '教育背景', '项目经历', '实习 / 工作经历', '专业技能', '校园经历', '证书及奖项'],
     'EN': ['Ce Zhang', 'EDUCATION', 'PROJECT EXPERIENCE', 'PROFESSIONAL EXPERIENCE', 'TECHNICAL SKILLS', 'LEADERSHIP & ACTIVITIES', 'CERTIFICATIONS AND AWARDS'],

@@ -294,3 +294,14 @@ ExportDialog 导出 zip 后显示「中文/英文 PDF（保存/分享）」按�
 - 时间显示修正：详情页的投递时间 / 附件时间 / 状态历史原来直接截 UTC 字符串（比北京时间早 8 小时），改为 `localStamp` 按本地时间显示。
 - 测试：`tests/quickRecord2026_11.test.ts`（12 条）；e2e `tests/e2e/quick_record_e2e.py`（看图路径用拦截的假接口、本机识别路径用真实 tesseract，33/33）；`tracker_e2e` 33/33、`release_e2e` 35/35（两处断言改为新「简历 PDF」区）、`resume_workspace_e2e` 25/25、`career_kit_e2e` 10/10；vitest 727/727。
 - 待负责人用真实截图确认：通义千问看图模型对真实招聘网站截图的识别准确度。
+
+### 2.24 开源准备：改名 CVPair、完整英文界面、新手引导、README 与文档（2026-11-15，负责人需求）
+- **改名**：仓库 `RanRuiqian/resume-tool` → `RanRuiqian/cvpair`（负责人选「CVPair · 简历搭子」）；网址 `https://ranruiqian.github.io/cvpair/`。**数据库名 `resume-tool` / `resume-tool-demo`、备份格式 `resume-tool-archive` 故意不改**：IndexedDB 按域名（ranruiqian.github.io）区分，路径变了数据仍在；旧备份仍可导入。旧网址 `/resume-tool/` 已失效（GitHub 改名不会跳转 Pages 网址）。
+- **英文界面**（负责人选「中英文用户都要」）：界面文字统一 `tx('中文', ...args)`（`src/i18n/tx.ts`）——中文模式原样返回（中文界面与之前完全一致，全部原有 e2e 通过），英文查 `src/i18n/en.ts`（约 1360 条，动态加载，不增加中文首屏体积）。顶层标签表用 `txDeep()`（Proxy，按读取时的语言翻译）；双语字段（模板名）用 `txPick()`。英文界面启动时先加载翻译表再显示；切换按钮也先加载再切。
+  - 工具：`scripts/i18n/codemod.mjs`（一次性把 JSX / 字符串里的中文包进 tx，已跳过比较、正则、includes 参数、data-testid 等）、`extract.mjs`（列缺失英文）、`toplevel.mjs`（找顶层 tx 误用）、`lazify.mjs` / `unwrap.mjs`。
+  - 测试：`tests/i18nCoverage.test.ts`（所有 tx 都有英文、占位符一致、txDeep 随语言变化）；`tests/e2e/i18n_en_e2e.py`（空库逐页无中文界面文字，15/15）。
+  - **已知未翻**：`src/ai`、`src/quality`、`src/audit` 等底层逻辑生成的提示（生成说明、整理报告原因等）仍是中文——这些文件里提示词与匹配规则混在一起，自动改写可能改变发给 AI 的内容，故只处理了 provider / apiProfiles / autoOnePage / repo / backup / ocr 这几个纯提示文件。
+- **新手引导**：首屏三条要点 + 「先看演示」按钮（`?demo`，独立演示库）；API 表单里「怎么申请 API Key？要花多少钱？」（各服务商步骤，不写具体单价）；页脚 GitHub 链接与隐私提示。
+- **文档**：README（英）/ README.zh-CN 重写（截图在 `docs/images/`，全部来自演示数据）；新增 `CONTRIBUTING.md`、`CHANGELOG.md`、`docs/README.md`、`.github/ISSUE_TEMPLATE/*`、`PULL_REQUEST_TEMPLATE.md`；早期版本文档移到 `docs/dev/history/`（链接已更新）；e2e 默认截图目录改为 `/tmp/cvpair-e2e/`。
+- **v1.0**：负责人决定等这一轮做完再发布（不要自行打标签）。
+

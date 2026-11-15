@@ -1,48 +1,98 @@
-# Bilingual Resume Builder
+# CVPair
 
 English | [中文](./README.zh-CN.md)
 
-A browser-only, privacy-first, open-source resume tool. Keep a structured career library locally → upload a job-post screenshot or paste the JD → AI parses the role, picks and rewrites relevant entries from your library (**never fabricating**) → one click downloads a zip with **CN/EN × PDF/Word** (4 files).
+**A bilingual (Chinese / English) AI resume builder that runs entirely in your browser.** Fill in your profile once. For each job, upload a screenshot of the posting or paste the description, and AI picks the most relevant experience from *your* profile, tailors it to the role, and gives you a Chinese and an English resume at the same time (PDF + editable Word). After applying, log the application and keep the exact resume you sent.
 
-## How it works (three steps)
+**Use it online: <https://ranruiqian.github.io/cvpair/>** — no sign-up, no install. Want a quick look first? Open the [demo](https://ranruiqian.github.io/cvpair/?demo#wizard) (sample data, no API key needed).
 
-Connect an AI provider once → ① establish a reusable personal library → ② upload screenshots or paste a target job → ③ AI selects and writes a draft, then edit, reorder, preview and download CN/EN PDF/Word in one workspace. Material checkboxes update instantly without AI calls; deselection keeps both library data and your edits.
+![Edit & download: pick material on the left, live preview on the right](docs/images/editor-en.png)
 
-This is an AI-assisted personal résumé tool. AI must not fabricate facts. Manual editing and exports do not require proof documents or risk approvals. Existing V7 data remains usable without reimporting.
+## Why CVPair
+
+- **Your data stays in your browser.** No account, no server, no database of ours. Your profile, resumes and applications live in your browser's IndexedDB. Only the AI provider *you* choose receives what's needed to generate; when generating a resume, your photo, contact details and date of birth are never sent.
+- **One profile, two languages.** Both versions come from the same profile, with numbers and dates checked across languages; leftover Chinese in the English version is detected and translated.
+- **No invented experience.** AI can only select and rewrite what's in your library, and every bullet traces back to a source entry, with a fact check after generation. Always read it through yourself before applying.
+- **Layout measured on the real PDF.** Preview, PDF and Word share one layout engine. Page count is measured on the actual PDF, and “Auto-fit to 1 page” tightens spacing within readable minimums.
+- **Track what you applied to.** Drop in the “application submitted” screenshot to create a record automatically, with the PDF you sent stored alongside — or replace it with your own edited PDF.
+- **Bring your own AI key.** Works with DeepSeek, Qwen (Alibaba Cloud), OpenAI and any OpenAI-compatible API. You pay the provider directly for what you use; CVPair charges nothing.
 
 ## Features
 
-- **Profile library** – education, work, projects, skills, certificates, awards, photo, contacts. Every text field is bilingual (zh/en); fill one side and let AI translate the other (status: machine / confirmed / stale). Glossary of fixed translations. JSON import/export. Stored in IndexedDB.
-- **JD parsing** – screenshot (vision model OCR) or pasted text → must-haves, nice-to-haves, years, bilingual keywords, company short name, role abbreviation (left blank if unsure). Editable.
-- **Generation** – primary version first (defaults to JD language), then the other language is localized *from* it. Each item carries a `sourceId` pointing to the library entry. AI output is checked against source facts. Editing reminders are nonblocking; job matching explanations are optional.
-- **Layout settings** – 3 built-in JSON templates (Classic / Modern two-column / Compact). Photo position (left/right/none), module order & titles, 1/2 columns, font, colours, spacing. Per-language variants (CN shows photo by default, EN hides it). Live preview with CN / EN / side-by-side.
-- **Export** – `Company_ROLE_YYYYMMDD.zip` (`_2`, `_3` for repeats on the same day) containing `Company_ROLE_CN.pdf/.docx` and `Company_ROLE_EN.pdf/.docx`. No personal name in file names; editable before export; illegal characters sanitized; UTF-8 flag on zip entries.
-  - PDF via `@react-pdf/renderer` with an embedded Noto Sans SC subset (~100 KB per PDF).
-  - Word via `docx`: real paragraphs and heading styles; two-column layout and photo use **borderless tables** (no text boxes) so the file stays easy to edit.
-- **Demo mode** – no API key needed: rule-based parsing and keyword matching. Open `/?demo` to load a sample profile, JD and generated resume.
+| Area | What it does |
+|---|---|
+| Profile | Paste an old resume or upload PDF / Word / images; AI organises it into a structured library (education, work, projects, skills, certificates, awards, courses). Every field has Chinese and English versions; a glossary keeps translations consistent; snapshots are saved before every replace |
+| Job parsing | Upload job screenshots (local OCR in the browser, or a vision model) or paste the JD; extracts responsibilities, must-haves, nice-to-haves and keywords. Match up to 3 jobs at the same company with one resume, or generate a general resume |
+| Edit & download | Material pool (checking never calls AI), per-item CN/EN editing, layout presets (engineering formal, single / two column…), photo, colours, margins; auto-fit to 1 page and auto-trim; export Chinese and English PDF + Word as a zip (choose which files) |
+| Extras | Cover letter, one-minute self-introduction and interview prep notes per job (optional) |
+| Applications | Job library, status history, attachments, to-dos, interviews; log an application from a screenshot; import old CSV / JSON trackers; each application keeps an immutable resume snapshot and PDF |
+| Backup | Export everything as one ZIP (with attachments) and import it on another device; optionally include API keys encrypted with a password |
+| Interface | Chinese / English, switchable any time |
 
-## Quick start
+<details>
+<summary>More screenshots</summary>
+
+![Home](docs/images/home-zh.png)
+![Bilingual view](docs/images/bilingual-zh.png)
+![Log an application from a screenshot](docs/images/record-zh.png)
+
+</details>
+
+## Getting started
+
+1. Open <https://ranruiqian.github.io/cvpair/> (use the **EN** button at the top right for the English interface).
+2. Connect an AI service: pick a provider, paste your API key, click **Save and enable**. “How do I get an API key?” on the page walks you through each provider.
+   - **DeepSeek** (cheap, reachable from mainland China): sign up at [platform.deepseek.com](https://platform.deepseek.com), top up a small amount, create an API key.
+   - **Qwen**: create an API key in the Alibaba Cloud Model Studio (Bailian) console; its vision model (`qwen-vl-plus`) can also read application screenshots.
+   - **OpenAI** or any **OpenAI-compatible** service: enter its base URL, model and key.
+   - You pay the provider for what you use; generating a resume usually costs a few cents (check your provider's prices).
+3. Paste your old resume or fill in your profile → add a job → generate, adjust, download.
+
+> **Note:** data is stored in the current browser. Clearing browser data deletes it too — export a backup regularly under **Settings → Backup & restore**.
+
+## Privacy & security
+
+- There is no backend. The site is static files on GitHub Pages; everything runs in your browser.
+- When AI is used, job details and the resume-relevant text from your profile are sent **directly** from your browser to the provider you configured. When generating a resume, your name, contact details, photo, date of birth and raw transcripts are not sent, and the page lists what is and isn't sent. When you use AI to import an old resume, the text you paste or upload is sent as-is.
+- API keys are stored only in this browser; backups exclude keys by default.
+- See [docs/SECURITY.md](docs/SECURITY.md) (Chinese) for details.
+
+## Self-hosting
+
+**Your own GitHub Pages:**
+
+1. Fork this repository.
+2. In your fork, go to **Settings → Pages → Build and deployment → Source** and choose **GitHub Actions**.
+3. Push to `main` (or run *Deploy to GitHub Pages* from the Actions tab). Your site will be at `https://<your-username>.github.io/<repo-name>/`.
+
+**Run locally:**
 
 ```bash
-npm install
-npm run dev                         # http://localhost:5173 (try /?demo)
-npm run build && npm run preview    # http://localhost:4173
+npm ci
+npm run dev                        # http://localhost:5173 (add ?demo for demo mode)
+npm run build && npm run preview   # production build, http://localhost:4173
 ```
 
-In **Settings**, turn off demo mode and set Base URL (any OpenAI-compatible API: OpenAI, DeepSeek, Qwen…), API key, generation model, vision model, and optionally a translation model.
+Other static hosts (Vercel, Netlify, Cloudflare Pages): build command `npm run build`, output directory `dist`; set `BASE_PATH=/sub-path/` when serving from a sub-path.
 
-## Scripts
+## FAQ
 
-`npm run test` (unit tests) · `npm run lint` · `npm run typecheck` · `npm run verify:export` (writes sample zips to `../out/`).
+**Does it apply to jobs for me?** No. CVPair never submits applications or sends email, and never guesses that something was applied to.
 
-## Deploy
+**Will the AI make things up?** It is designed to use only what's in your library, and generated text is checked for numbers, dates, degrees and other facts. Wording can still be off, so read everything before you apply.
 
-Vercel: import repo, framework = Vite. GitHub Pages: `BASE_PATH=/<repo>/ npm run build` and publish `dist/`.
+**How do I move to another computer?** Export a full archive under **Settings → Backup & restore** and import it in the same place on the new computer.
 
-## Privacy
+**Which browsers?** Latest Chrome or Edge recommended. The first screenshot recognition downloads a ~20 MB OCR model, which is cached afterwards.
 
-Your data, API key and exported files stay in your browser. AI calls go directly to the provider you configure; photo, birth date, gender and hometown are never sent. Export a JSON backup regularly.
+## Tech stack
+
+React 19 · TypeScript · Vite · Dexie (IndexedDB) · @react-pdf/renderer (PDF with an embedded Noto Sans SC subset) · docx (Word) · tesseract.js (local OCR) · Vitest · Playwright
+
+## Contributing
+
+Issues and pull requests are welcome — please read [CONTRIBUTING.md](CONTRIBUTING.md) first. Developer docs live in [docs/](docs/README.md).
 
 ## License
 
-MIT. Bundled font is a subset of Noto Sans CJK SC (SIL OFL 1.1).
+[MIT](LICENSE)

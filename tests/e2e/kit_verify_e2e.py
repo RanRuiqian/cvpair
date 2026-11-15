@@ -2,7 +2,7 @@
 import json, os, tempfile
 from playwright.sync_api import sync_playwright
 HERE=os.path.dirname(os.path.abspath(__file__)); B=os.environ.get('E2E_BASE','http://localhost:4173/')
-S=os.environ.get('SHOT_DIR','/workspace/resume-tool/screenshots/'); os.makedirs(S, exist_ok=True)
+S=os.environ.get('SHOT_DIR','/tmp/cvpair-e2e/screenshots/'); os.makedirs(S, exist_ok=True)
 d=json.load(open(os.path.join(HERE,'..','fixtures','e2e-seed.json')))  # 虚构资料
 KEY='sk-FAKE-v1101-kit-0001'; ok=[]; calls={'n':0}
 def chk(n,c): ok.append(bool(c)); print(('PASS ' if c else 'FAIL ')+n, flush=True)

@@ -1,7 +1,7 @@
 # 智能资料导入 浏览器端到端（全部为模拟：资料为虚构，Key 为虚构，AI 接口被 Playwright 拦截并返回「有重复问题」的模拟识别结果，不访问真实服务商）
 import json, os, tempfile, re
 from playwright.sync_api import sync_playwright
-B=os.environ.get('E2E_BASE','http://localhost:4173/'); S=os.environ.get('SHOT_DIR','/workspace/resume-tool/screenshots/'); os.makedirs(S, exist_ok=True)
+B=os.environ.get('E2E_BASE','http://localhost:4173/'); S=os.environ.get('SHOT_DIR','/tmp/cvpair-e2e/screenshots/'); os.makedirs(S, exist_ok=True)
 FX=os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','fixtures')
 DOC=os.path.join(FX,'files','mock_master_profile_zh.txt'); TXT=open(DOC).read()
 SAMPLE=json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','..','src','sample','sample-profile.json')))

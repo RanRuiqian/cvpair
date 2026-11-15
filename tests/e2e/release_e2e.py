@@ -1,7 +1,7 @@
 # 发布前验收：导航工具 1.0 导入、完整备份恢复（PDF/DOCX/图片）、空库首启、移动端/桌面端布局。全部虚构数据。
 import json, zipfile, os, tempfile, shutil, hashlib, sys
 from playwright.sync_api import sync_playwright
-S='/workspace/resume-tool/screenshots/'; B=os.environ.get('E2E_BASE','http://localhost:4173/')
+S='/tmp/cvpair-e2e/screenshots/'; B=os.environ.get('E2E_BASE','http://localhost:4173/')
 FX=os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','fixtures')
 S=os.environ.get('SHOT_DIR', S); os.makedirs(S, exist_ok=True); TMP=tempfile.mkdtemp(prefix='p5-')
 HO=os.path.join(FX,'handoff-1.0-mock.json'); FAKE_KEY='sk-e2e-FAKE-key-p5-000'

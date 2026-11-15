@@ -1,7 +1,7 @@
 # v1.11 岗位分析历史 → 求职管理（浏览器端；资料、岗位全部虚构；不调用真实 AI）
 import json, os, tempfile
 from playwright.sync_api import sync_playwright
-B=os.environ.get('E2E_BASE','http://localhost:4173/'); S=os.environ.get('SHOT_DIR','/workspace/resume-tool/screenshots/'); os.makedirs(S, exist_ok=True)
+B=os.environ.get('E2E_BASE','http://localhost:4173/'); S=os.environ.get('SHOT_DIR','/tmp/cvpair-e2e/screenshots/'); os.makedirs(S, exist_ok=True)
 ok=[]
 def chk(n,c): ok.append(bool(c)); print(('PASS ' if c else 'FAIL ')+n, flush=True)
 def job(i,company,title,days):

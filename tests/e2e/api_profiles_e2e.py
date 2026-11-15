@@ -1,7 +1,7 @@
 # 多 API 配置管理 浏览器端到端（全部为模拟：Key 均为虚构，AI 接口被 Playwright 拦截并模拟返回，不访问真实服务商）
 import json, os, tempfile, re
 from playwright.sync_api import sync_playwright
-B=os.environ.get('E2E_BASE','http://localhost:4173/'); S=os.environ.get('SHOT_DIR','/workspace/resume-tool/screenshots/'); os.makedirs(S, exist_ok=True)
+B=os.environ.get('E2E_BASE','http://localhost:4173/'); S=os.environ.get('SHOT_DIR','/tmp/cvpair-e2e/screenshots/'); os.makedirs(S, exist_ok=True)
 FX=os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','fixtures'); SEED=json.load(open(os.path.join(FX,'e2e-seed.json')))
 K={'ds1':'sk-FAKE-ds-main-0001','ds2':'sk-FAKE-ds-bak-0002','qw':'sk-FAKE-qwen-0003','oa':'sk-FAKE-openai-0004','cu':'FAKE-custom-0005',
    'bad':'sk-FAKE-BAD-0006','poor':'sk-FAKE-POOR-0007','net':'sk-FAKE-NET-0008','slow':'sk-FAKE-SLOW-0009','old':'sk-FAKE-legacy-0010'}
