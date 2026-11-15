@@ -121,7 +121,7 @@ export function buildDocx(m: LayoutModel): Document {
   } else m.main.forEach((s) => children.push(...sectionParas(s, contentW, false)));
 
   return new Document({
-    creator: 'resume-tool', title: m.header.name,
+    creator: 'CVPair', title: m.header.name,
     styles: {
       default: { document: { run: { font, size: sz, color: hex(m.colors.text) }, paragraph: { spacing: eng ? { line: exactLine, lineRule: LineRuleType.EXACT, after: 0 } : { line, after: 0 } } } },
       paragraphStyles: [

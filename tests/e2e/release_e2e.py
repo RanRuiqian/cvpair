@@ -27,7 +27,7 @@ with sync_playwright() as p:
     c,pg=ctx_new(p); pg.goto(B); pg.wait_for_timeout(1500)
     body=pg.locator('body').inner_text()
     dbs=pg.evaluate("indexedDB.databases()")
-    chk('空数据库首次启动：页面正常、无报错、只创建真实库', not pg.errs and '双语简历生成器' in body and [x['name'] for x in dbs]==['resume-tool'])
+    chk('空数据库首次启动：页面正常、无报错、只创建真实库', not pg.errs and 'CVPair' in body and [x['name'] for x in dbs]==['resume-tool'])
     nav(pg,'applications'); chk('空库：求职投递页显示空状态', pg.locator('[data-testid=empty]').count()==1)
     pg.evaluate(SETKEY, FAKE_KEY)
     # ---------- 导航工具 1.0 导入 ----------

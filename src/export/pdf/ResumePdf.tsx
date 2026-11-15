@@ -90,7 +90,7 @@ export function ResumePdf({ m }: { m: LayoutModel }) {
   );
   const photoInHeader = !!photoEl;
   return (
-    <Document title={m.header.name} author={m.header.name} creator="resume-tool" producer="resume-tool">
+    <Document title={m.header.name} author={m.header.name} creator="CVPair" producer="CVPair">
       <Page size={m.pageSize} style={[st.page, F('')]} wrap>
         <View style={st.header}>
           {photoInHeader && m.photo?.position === 'left' && <View style={{ marginRight: 12 }}>{photoEl}</View>}
